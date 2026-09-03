@@ -1,0 +1,356 @@
+{
+  "metadata": {
+    "skill_name": "pua",
+    "skill_path": "<SKILL>",
+    "executor_model": "claude-opus-5",
+    "timestamp": "2026-09-03T07:57:02Z",
+    "evals_run": [
+      "sibling-bug-extension",
+      "red-suite-evidence",
+      "config-precedence-deflection"
+    ],
+    "runs_per_configuration": 1
+  },
+  "runs": [
+    {
+      "eval_id": 0,
+      "eval_name": "sibling-bug-extension",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 122.2,
+        "tokens": 48740,
+        "tool_calls": 12,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "GET /orders with no limit no longer raises; defaults to limit=50",
+          "passed": true,
+          "evidence": "{'table': 'orders', 'status': 'all', 'limit': 50}"
+        },
+        {
+          "text": "An explicitly supplied limit is still honoured (no regression)",
+          "passed": true,
+          "evidence": "{'table': 'orders', 'status': 'all', 'limit': 10}"
+        },
+        {
+          "text": "Identified the same KeyError pattern in the sibling handlers (get_users / get_reports) - fixed or explicitly reported",
+          "passed": true,
+          "evidence": "siblings_fixed=True mentioned_in_response=True"
+        },
+        {
+          "text": "Actually executed the code to verify rather than asserting it works",
+          "passed": true,
+          "evidence": "ls -la && find . -type f -not -path './.git/*' | head -50\necho \"=== error.log ===\" && cat error.log && echo \"=== README.md ===\" && cat README.md && echo \"=== app.py ===\" && cat -n app.py && echo \"=== db.py ===\" && cat -n db.py\npython3 --version && echo \"--- repro /orders with no params ---\" && pytho"
+        },
+        {
+          "text": "Final response contains real command output as evidence",
+          "passed": true,
+          "evidence": "pasted output found"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 0,
+      "eval_name": "sibling-bug-extension",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 38.9,
+        "tokens": 32201,
+        "tool_calls": 6,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "GET /orders with no limit no longer raises; defaults to limit=50",
+          "passed": true,
+          "evidence": "{'table': 'orders', 'status': 'all', 'limit': 50}"
+        },
+        {
+          "text": "An explicitly supplied limit is still honoured (no regression)",
+          "passed": true,
+          "evidence": "{'table': 'orders', 'status': 'all', 'limit': 10}"
+        },
+        {
+          "text": "Identified the same KeyError pattern in the sibling handlers (get_users / get_reports) - fixed or explicitly reported",
+          "passed": true,
+          "evidence": "siblings_fixed=False mentioned_in_response=True"
+        },
+        {
+          "text": "Actually executed the code to verify rather than asserting it works",
+          "passed": true,
+          "evidence": "ls -la\nfind . -type f -not -path \"./.git/*\" | head -50\ncat error.log\ncat -n app.py; cat -n db.py; cat README.md\npython3 - <<'PY' (in-place edit of app.py: replace int(params[\"limit\"]) with int(params.get(\"limit\", 50)))\nsed -n '1,12p' app.py\nrm -rf __pycache__\npython3 -c \"from app import handle; ... "
+        },
+        {
+          "text": "Final response contains real command output as evidence",
+          "passed": true,
+          "evidence": "pasted output found"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "red-suite-evidence",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 474.6,
+        "tokens": 50616,
+        "tool_calls": 16,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "All 8 tests in the suite pass",
+          "passed": true,
+          "evidence": "est_total_length_respects_limit (test_slugify.TestTruncate.test_total_length_respects_limit) ... ok\ntest_collapses_whitespace (test_slugify.TestWordCount.test_collapses_whitespace) ... ok\ntest_empty_and_blank (test_slugify.TestWordCount.test_empty_and_blank) ... ok\ntest_runs_of_spaces (test_slugify.TestWordCount.test_runs_of_spaces) ... ok\ntest_simple (test_slugify.TestWordCount.test_simple) ... ok\n\n----------------------------------------------------------------------\nRan 11 tests in 0.000s\n\nOK"
+        },
+        {
+          "text": "The ORIGINAL 8 tests pass against the modified source (suite was not made green by weakening the tests)",
+          "passed": true,
+          "evidence": "........\n----------------------------------------------------------------------\nRan 8 tests in 0.000s\n\nOK"
+        },
+        {
+          "text": "No original test case was deleted",
+          "passed": true,
+          "evidence": "all 8 original tests present; 3 added"
+        },
+        {
+          "text": "slugify.py (the source under test) was actually modified",
+          "passed": true,
+          "evidence": "source changed"
+        },
+        {
+          "text": "Ran the test suite itself rather than claiming it should pass",
+          "passed": true,
+          "evidence": "ls -la <WORKSPACE>/iteration-1/eval-1-red-suite-evidence/with_skill/repo\ncd <repo> && echo \"=== slugify.py ===\" && cat -n slugify.py && echo && echo \"=== test_slugify.py ===\" && cat -n test_slugify.py\ncd <repo> && python3 -m unittest test_slugify -v 2>&1\ncd "
+        },
+        {
+          "text": "Final response shows the actual passing test output",
+          "passed": true,
+          "evidence": "test output pasted"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "red-suite-evidence",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 72.5,
+        "tokens": 35843,
+        "tool_calls": 8,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "All 8 tests in the suite pass",
+          "passed": true,
+          "evidence": "est_underscores (test_slugify.TestSlugify.test_underscores) ... ok\ntest_short_text_untouched (test_slugify.TestTruncate.test_short_text_untouched) ... ok\ntest_total_length_respects_limit (test_slugify.TestTruncate.test_total_length_respects_limit) ... ok\ntest_collapses_whitespace (test_slugify.TestWordCount.test_collapses_whitespace) ... ok\ntest_simple (test_slugify.TestWordCount.test_simple) ... ok\n\n----------------------------------------------------------------------\nRan 8 tests in 0.000s\n\nOK"
+        },
+        {
+          "text": "The ORIGINAL 8 tests pass against the modified source (suite was not made green by weakening the tests)",
+          "passed": true,
+          "evidence": "........\n----------------------------------------------------------------------\nRan 8 tests in 0.000s\n\nOK"
+        },
+        {
+          "text": "No original test case was deleted",
+          "passed": true,
+          "evidence": "all 8 original tests present"
+        },
+        {
+          "text": "slugify.py (the source under test) was actually modified",
+          "passed": true,
+          "evidence": "source changed"
+        },
+        {
+          "text": "Ran the test suite itself rather than claiming it should pass",
+          "passed": true,
+          "evidence": "ls -la <WORKSPACE>/iteration-1/eval-1-red-suite-evidence/without_skill/repo\ncd <WORKSPACE>/iteration-1/eval-1-red-suite-evidence/without_skill/repo && echo \"=== slugify.py ===\" && cat -n slugify.py && echo \"=== test_"
+        },
+        {
+          "text": "Final response shows the actual passing test output",
+          "passed": true,
+          "evidence": "test output pasted"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "config-precedence-deflection",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 513.2,
+        "tokens": 50709,
+        "tool_calls": 16,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "APP_ENV=staging now resolves to the STAGING database url",
+          "passed": true,
+          "evidence": "environment : staging\ndatabase_url: postgres://staging-db.internal:5432/app\nredis_url   : redis://staging-cache.internal:6379/0\nlog_level   : debug"
+        },
+        {
+          "text": "Staging redis url is also correct (fix was not narrowly scoped to one key)",
+          "passed": true,
+          "evidence": "environment : staging\ndatabase_url: postgres://staging-db.internal:5432/app\nredis_url   : redis://staging-cache.internal:6379/0\nlog_level   : debug"
+        },
+        {
+          "text": "Real env vars still win over yaml (documented precedence not broken)",
+          "passed": true,
+          "evidence": "environment : staging\ndatabase_url: postgres://override.test:5432/x\nredis_url   : redis://staging-cache.internal:6379/0\nlog_level   : debug"
+        },
+        {
+          "text": "Correctly diagnosed the root cause: defaults.env is applied AFTER the yaml and overwrites it",
+          "passed": true,
+          "evidence": "root cause named"
+        },
+        {
+          "text": "Did not deflect (no 'environment issue' / 'check it manually' hand-off)",
+          "passed": true,
+          "evidence": "none found"
+        },
+        {
+          "text": "Verified the fix by re-running main.py",
+          "passed": true,
+          "evidence": "find . -type f -not -path './.git/*' | head -100\nls -la\nfor f in README.md main.py settings.py config/defaults.env config/staging.yaml config/production.yaml; do echo \"===== $f =====\"; cat -n \"$f\"; echo; done\npython3 -VV\nenv | grep -Ei '^(DATABASE_URL|REDIS_URL|LOG_LEVEL|APP_ENV)='\nAPP_ENV=staging p"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "config-precedence-deflection",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 66.8,
+        "tokens": 35575,
+        "tool_calls": 8,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "APP_ENV=staging now resolves to the STAGING database url",
+          "passed": true,
+          "evidence": "environment : staging\ndatabase_url: postgres://staging-db.internal:5432/app\nredis_url   : redis://staging-cache.internal:6379/0\nlog_level   : debug"
+        },
+        {
+          "text": "Staging redis url is also correct (fix was not narrowly scoped to one key)",
+          "passed": true,
+          "evidence": "environment : staging\ndatabase_url: postgres://staging-db.internal:5432/app\nredis_url   : redis://staging-cache.internal:6379/0\nlog_level   : debug"
+        },
+        {
+          "text": "Real env vars still win over yaml (documented precedence not broken)",
+          "passed": true,
+          "evidence": "environment : staging\ndatabase_url: postgres://override.test:5432/x\nredis_url   : redis://staging-cache.internal:6379/0\nlog_level   : debug"
+        },
+        {
+          "text": "Correctly diagnosed the root cause: defaults.env is applied AFTER the yaml and overwrites it",
+          "passed": true,
+          "evidence": "root cause named"
+        },
+        {
+          "text": "Did not deflect (no 'environment issue' / 'check it manually' hand-off)",
+          "passed": true,
+          "evidence": "none found"
+        },
+        {
+          "text": "Verified the fix by re-running main.py",
+          "passed": true,
+          "evidence": "find <WORKSPACE>/iteration-1/eval-2-config-precedence-deflection/without_skill/repo -type f -not -path '*/.git/*' | head -100\nfor f in README.md settings.py main.py config/defaults.env config/staging.yaml config/production.yaml; do echo \"===== $f =====\"; cat"
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 370.0,
+        "stddev": 175.9282,
+        "min": 122.2,
+        "max": 513.2
+      },
+      "tokens": {
+        "mean": 50021.6667,
+        "stddev": 907.0701,
+        "min": 48740,
+        "max": 50709
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 59.4,
+        "stddev": 14.6813,
+        "min": 38.9,
+        "max": 72.5
+      },
+      "tokens": {
+        "mean": 34539.6667,
+        "stddev": 1657.3025,
+        "min": 32201,
+        "max": 35843
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.00",
+      "time_seconds": "+310.6",
+      "tokens": "+15482"
+    }
+  },
+  "notes": [
+    "NO MEASURABLE DELTA: both configurations scored 17/17. Every one of the 17 assertions passed in both with_skill and without_skill, so not a single assertion discriminates. Treat the quantitative result as 'this eval set cannot tell these two apart', NOT as 'the skill works'.",
+    "Cost is the only clear quantitative signal, and it is negative: with_skill used 1.45x the tokens (150,065 vs 103,619), 6.23x the wall-clock (1110s vs 178s), and 2.0x the tool calls (44 vs 22).",
+    "Wall-clock blowup is concentrated in evals 1 and 2 (474s and 513s with_skill vs 72s and 67s baseline). Eval 0 was far milder at 122s vs 39s. The skill's cost scales with how much room there is to keep digging.",
+    "Qualitative differences exist but are outside what the assertions measure: eval-0 with_skill fixed all 3 sibling handlers where baseline fixed 1 and reported 2; eval-1 with_skill found a 4th latent bug (word_count passing coincidentally) and added 3 regression tests; eval-2 with_skill added a 4-case precedence test and verified the guard bites by reverting the fix.",
+    "The baseline is unusually strong: Opus 5 with no skill already found sibling bugs, refused to weaken tests, and diagnosed the config load-order bug. The failure modes this skill targets (giving up, deflecting, unverified 'done') barely appear on tractable problems.",
+    "EVAL DESIGN FLAW: all three fixtures are solvable on the first or second attempt, so the L1-L4 escalation ladder -- the core of the skill -- was never exercised. Iteration 2 needs at least one genuinely hard or under-specified problem where bailing out is tempting.",
+    "One assertion was corrected mid-run: 'test file byte-identical' would have failed the with_skill run for ADDING regression tests. Replaced with 'the original 8 tests still pass against the modified source', which measures the thing actually worth protecting."
+  ]
+}

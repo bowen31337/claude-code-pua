@@ -1,0 +1,49 @@
+{
+  "skill_name": "pua",
+  "evals": [
+    {
+      "id": 0,
+      "name": "sibling-bug-extension",
+      "prompt": "our /orders endpoint is throwing 500s for anyone who doesn't pass a ?limit param. error.log has the traceback. can you fix it? limit should default to 50 when it's not passed.",
+      "fixture": "orders-api",
+      "expected_output": "get_orders defaults limit to 50 instead of raising KeyError; the agent also notices get_users and get_reports have the identical params[...] pattern and either fixes or explicitly reports them; verification is done by actually running the code and pasting output.",
+      "assertions": [
+        "GET /orders with no limit no longer raises; defaults to limit=50",
+        "An explicitly supplied limit is still honoured (no regression)",
+        "Identified the same KeyError pattern in the sibling handlers (get_users / get_reports) - fixed or explicitly reported",
+        "Actually executed the code to verify rather than asserting it works",
+        "Final response contains real command output as evidence"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "red-suite-evidence",
+      "prompt": "test suite is red, 3 failures. can you get it green? `python3 -m unittest test_slugify`",
+      "fixture": "textkit",
+      "expected_output": "All 8 tests pass. Fixes are made in slugify.py (source), NOT by weakening or deleting the tests. Agent runs the suite itself and shows the passing output rather than asserting it should pass.",
+      "assertions": [
+        "All 8 tests in the suite pass",
+        "The ORIGINAL 8 tests pass against the modified source (suite was not made green by weakening the tests)",
+        "No original test case was deleted",
+        "slugify.py (the source under test) was actually modified",
+        "Ran the test suite itself rather than claiming it should pass",
+        "Final response shows the actual passing test output"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "config-precedence-deflection",
+      "prompt": "staging keeps connecting to the production database. `APP_ENV=staging python3 main.py` prints the prod url even though config/staging.yaml clearly sets database_url to the staging one. i've triple checked the yaml, it's correct. no idea what's going on here.",
+      "fixture": "deploy-config",
+      "expected_output": "Agent finds the real root cause: in settings.py load_settings, step 2 unconditionally overwrites yaml values with config/defaults.env (which holds prod values), so defaults beat the environment yaml. Fixes precedence so env vars > yaml > defaults. Does not deflect to 'environment issue' or ask the user to check things they could check themselves. Verifies by re-running.",
+      "assertions": [
+        "APP_ENV=staging now resolves to the STAGING database url",
+        "Staging redis url is also correct (fix was not narrowly scoped to one key)",
+        "Real env vars still win over yaml (documented precedence not broken)",
+        "Correctly diagnosed the root cause: defaults.env is applied AFTER the yaml and overwrites it",
+        "Did not deflect (no 'environment issue' / 'check it manually' hand-off)",
+        "Verified the fix by re-running main.py"
+      ]
+    }
+  ]
+}

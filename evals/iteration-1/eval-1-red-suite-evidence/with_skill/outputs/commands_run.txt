@@ -1,0 +1,13 @@
+ls -la <WORKSPACE>/iteration-1/eval-1-red-suite-evidence/with_skill/repo
+cd <repo> && echo "=== slugify.py ===" && cat -n slugify.py && echo && echo "=== test_slugify.py ===" && cat -n test_slugify.py
+cd <repo> && python3 -m unittest test_slugify -v 2>&1
+cd <repo> && python3 - <<'PY' [probe: word_count('')/'  '/'one   two'/'one\ttwo', repr of "one   two\tthree\nfour".split(" "), slugify max_length=0, truncate('abcdefghij',2)] PY
+cd <repo> && cp slugify.py <scratchpad>/slugify.py.bak && cat > slugify.py <<'PY' [rewrite: _PUNCT keeps underscore; max_length is not None + re-strip("-"); truncate reserves suffix room and clamps to limit; word_count uses split()] PY && echo "--- written ---" && cat -n slugify.py
+cd <repo> && rm -rf __pycache__ && python3 -m unittest test_slugify -v 2>&1
+cd <repo> && python3 - <<'PY' [edge-case sweep: 10 slugify cases, 8 truncate cases incl. exhaustive no-pair-exceeds-limit check, 5 word_count cases] PY
+cd <repo> && echo "=== all files in repo ===" && find . -type f -not -path "./__pycache__/*" && echo && echo "=== any other callers / same-pattern siblings ===" && grep -rn "slugify\|truncate\|word_count\|split(\" \")\|split(' ')" . --include=*.py --exclude-dir=__pycache__   # FAILED: zsh glob error on --include=*.py
+cd <repo> && grep -rn -e 'slugify' -e 'truncate' -e 'word_count' -e 'split(" ")' -e "split(' ')" --exclude-dir=__pycache__ .
+cd <repo> && python3 - <<'PY' [append regression tests: TestTruncate.test_limit_shorter_than_suffix, TestWordCount.test_runs_of_spaces, TestWordCount.test_empty_and_blank] PY
+SCRATCH=<scratchpad>; REPO=<repo>; rm -rf "$SCRATCH/oldcode" && mkdir -p "$SCRATCH/oldcode" && cp "$SCRATCH/slugify.py.bak" "$SCRATCH/oldcode/slugify.py" && cp "$REPO/test_slugify.py" "$SCRATCH/oldcode/test_slugify.py" && cd "$SCRATCH/oldcode" && echo "### NEW TESTS vs ORIGINAL (pre-fix) slugify.py -- expect 6 failures ###" && python3 -m unittest test_slugify 2>&1 | tail -25
+cd <repo> && rm -rf __pycache__ && python3 -m unittest test_slugify; echo "exit=$?"
+cd <repo> && python3 -m unittest test_slugify -v 2>&1 | tail -6 && echo "--- python version ---" && python3 -VV

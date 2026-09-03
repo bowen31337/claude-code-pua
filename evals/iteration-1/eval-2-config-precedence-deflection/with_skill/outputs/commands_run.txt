@@ -1,0 +1,35 @@
+find . -type f -not -path './.git/*' | head -100
+ls -la
+for f in README.md main.py settings.py config/defaults.env config/staging.yaml config/production.yaml; do echo "===== $f ====="; cat -n "$f"; echo; done
+python3 -VV
+env | grep -Ei '^(DATABASE_URL|REDIS_URL|LOG_LEVEL|APP_ENV)='
+APP_ENV=staging python3 main.py
+APP_ENV=staging python3 -c 'import settings, os, json; y = settings._parse_yaml(os.path.join(settings.CONFIG_DIR,"staging.yaml")); d = settings._load_env_file(os.path.join(settings.CONFIG_DIR,"defaults.env")); print(y); print(sorted(k.lower() for k in d)); print(sorted(set(y) & {k.lower() for k in d})); print(settings.load_settings())'
+cp settings.py $SCRATCH/settings.py.bak
+python3 - <<'PY' (in-place patch of settings.py: swap defaults.env and yaml load order)
+diff -u $SCRATCH/settings.py.bak settings.py
+/usr/bin/diff -u $SCRATCH/settings.py.bak settings.py
+rm -rf __pycache__
+APP_ENV=staging python3 main.py
+APP_ENV=production python3 main.py
+python3 main.py
+APP_ENV=staging DATABASE_URL=postgres://override.local:5432/app python3 main.py
+printf 'environment: bare\n' > config/bare.yaml
+APP_ENV=bare python3 main.py
+rm -f config/bare.yaml
+grep -rn "load_settings\|feature_flags\|cfg\[" --include=*.py --include=*.md .
+grep -rn "load_settings\|feature_flags\|new_checkout" --include='*.py' --include='*.md' --include='*.yaml' .
+APP_ENV=staging python3 -c 'from settings import load_settings; cfg = load_settings(); print(sorted(cfg)); print("feature_flags" in cfg); print("new_checkout" in cfg)'
+grep -n 'for key in (' settings.py
+cat > test_precedence.py <<'PY' (new regression test file)
+python3 -m unittest test_precedence -v
+cp settings.py $SCRATCH/settings.py.fixed
+cp $SCRATCH/settings.py.bak settings.py
+rm -rf __pycache__
+python3 -m unittest test_precedence 2>&1 | tail -20
+cp $SCRATCH/settings.py.fixed settings.py
+rm -rf __pycache__
+python3 -m unittest test_precedence 2>&1 | tail -5
+sed -n '35,55p' settings.py
+APP_ENV=staging python3 main.py
+ls -la . config

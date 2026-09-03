@@ -1,0 +1,8 @@
+ls -la
+find . -type f -not -path "./.git/*" | head -50
+cat error.log
+cat -n app.py; cat -n db.py; cat README.md
+python3 - <<'PY' (in-place edit of app.py: replace int(params["limit"]) with int(params.get("limit", 50)))
+sed -n '1,12p' app.py
+rm -rf __pycache__
+python3 -c "from app import handle; ... verify /orders defaults and probe /users, /reports"
