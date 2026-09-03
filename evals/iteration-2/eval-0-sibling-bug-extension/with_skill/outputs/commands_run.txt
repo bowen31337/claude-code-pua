@@ -1,0 +1,17 @@
+ls -la && echo "---TREE---" && find . -type f -not -path './.git/*' | head -100
+for f in README.md app.py db.py error.log; do echo "===== $f ====="; cat -n "$f"; echo; done
+git status --short 2>&1 | head; echo "exit=$?"; python3 --version
+echo "=== BEFORE: /orders with no params ===" && python3 -c "from app import handle; print(handle('/orders', {}))"; echo "exit=$?"
+echo "=== required-key subscripts on params ===" && grep -rn 'params\[' . --include=*.py && echo && echo "=== safe .get() lookups ===" && grep -rn 'params\.get' . --include=*.py
+echo "=== required-key subscripts on params ===" && grep -rn "params\[" --include="*.py" . ; echo; echo "=== safe .get() lookups ===" && grep -rn "params\.get" --include="*.py" .
+for p in /orders /users /reports /health; do echo "--- handle('$p', {}) ---"; python3 -c "from app import handle; try: print('OK  ', handle('$p', {})) except Exception as e: print('500 ', type(e).__name__ + ':', e)"; done
+python3 -c "from app import handle; for path, params in [('/orders', {'limit':'abc'}), ('/orders', {'limit':''}), ('/nope', {})]: try: print('OK  ', path, params, '->', handle(path, params)) except Exception as e: print('500 ', path, params, '->', type(e).__name__ + ':', e)"
+cp app.py <scratchpad>/app.py.bak && cat > app.py <<'PYEOF' ... PYEOF ; python3 -c "import ast,sys; ast.parse(open('app.py').read()); print('syntax OK')"
+echo "=== the reported repro, straight from the README ===" && python3 -c "from app import handle; print(handle('/orders', {}))"
+python3 - <<'PYEOF'  # 10-case verification matrix over all routes + ValueError checks
+diff -u <scratchpad>/app.py.bak app.py
+/usr/bin/diff -u <scratchpad>/app.py.bak app.py | cat
+cat >> README.md <<'MDEOF' ... MDEOF ; cat README.md; grep -rn "params\[" --include="*.py" . ; echo "grep exit=$?"
+echo "=== README command, executed verbatim ===" && python3 -c "from app import handle; print(handle('/orders', {}))" && echo && echo "=== final sweep: every route, zero params ===" && python3 -c "from app import handle; for p in ['/orders','/users','/reports','/health']: try: print('  200', p, handle(p, {})) except Exception as e: print('  500', p, type(e).__name__, e)"
+mkdir -p <outputs> && cat > <outputs>/final_response.md <<'MDEOF' ... MDEOF
+cat > <outputs>/commands_run.txt <<'TXTEOF' ... TXTEOF

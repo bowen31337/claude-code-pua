@@ -1,0 +1,24 @@
+cd <EVALS>/iteration-2/eval-0-sibling-bug-extension/without_skill/repo && ls -la && echo "---TREE---" && find . -type f -not -path './.git/*' | head -100
+cd <EVALS>/iteration-2/eval-0-sibling-bug-extension/without_skill/repo && cat error.log 2>/dev/null || find . -name 'error.log' -not -path './.git/*'
+cd <EVALS>/iteration-2/eval-0-sibling-bug-extension/without_skill/repo && echo "=== app.py ===" && cat -n app.py && echo "=== db.py ===" && cat -n db.py && echo "=== README.md ===" && cat -n README.md
+cd <EVALS>/iteration-2/eval-0-sibling-bug-extension/without_skill/repo && python3 - <<'PYEOF'
+import pathlib
+p = pathlib.Path("app.py")
+s = p.read_text()
+old = '    limit = int(params["limit"])\n'
+new = '    limit = int(params.get("limit", 50))\n'
+assert s.count(old) == 1, s.count(old)
+p.write_text(s.replace(old, new))
+PYEOF
+sed -n '1,12p' app.py
+cd <EVALS>/iteration-2/eval-0-sibling-bug-extension/without_skill/repo && python3 -c "from app import handle; print('no limit      ->', handle('/orders', {})); print('limit=10      ->', handle('/orders', {'limit': '10'})); print('limit+status  ->', handle('/orders', {'limit': '5', 'status': 'shipped'}))"
+cd <EVALS>/iteration-2/eval-0-sibling-bug-extension/without_skill/repo && python3 -c "
+from app import handle
+for path in ['/orders', '/users', '/reports', '/health']:
+    try:
+        print(f'{path:10} OK    ', handle(path, {}))
+    except Exception as e:
+        print(f'{path:10} 500   {type(e).__name__}: {e}')
+"
+mkdir -p <EVALS>/iteration-2/eval-0-sibling-bug-extension/without_skill/outputs && cat > .../outputs/final_response.md <<'EOF' ... EOF
+cat > .../outputs/commands_run.txt <<'EOF' ... EOF

@@ -1,0 +1,12 @@
+{
+  "eval_id": 0,
+  "eval_name": "sibling-bug-extension",
+  "prompt": "our /orders endpoint is throwing 500s for anyone who doesn't pass a ?limit param. error.log has the traceback. can you fix it? limit should default to 50 when it's not passed.",
+  "assertions": [
+    "GET /orders with no limit no longer raises; defaults to limit=50",
+    "An explicitly supplied limit is still honoured (no regression)",
+    "Identified the same KeyError pattern in the sibling handlers (get_users / get_reports) - fixed or explicitly reported",
+    "Actually executed the code to verify rather than asserting it works",
+    "Final response contains real command output as evidence"
+  ]
+}

@@ -1,0 +1,24 @@
+find <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/with_skill/repo -type f -not -path "*/.git/*" -not -path "*/node_modules/*" -not -path "*/__pycache__/*" | head -100
+for f in README.md money.py rates.py ledger.py; do echo "===== $f ====="; cat -n "$f"; done
+for f in test_money.py test_rates.py test_conversion.py test_ledger.py; do [ -f "$f" ] && { echo "===== $f ====="; cat -n "$f"; }; done
+cd <SKILL>/references && wc -l flavors.md methodology.md && cat methodology.md
+python3 --version
+python3 -m unittest discover -s . -p "test_*.py" -v
+for i in 1 2 3 4 5 6 7 8 9 10; do python3 -m unittest test_ledger 2>&1 | tail -1; done
+python3 -m unittest test_conversion test_ledger 2>&1 | tail -8
+python3 -m unittest test_ledger test_conversion 2>&1 | tail -3
+python3 -c "import rates; from decimal import Decimal; print(rates.get_rate('EUR')); rates.set_rate('EUR','1.1001'); print(rates.get_rate('EUR')); print(rates.to_usd(Decimal('1000'),'EUR')); print(rates.to_usd(Decimal('1000'),'EUR') - Decimal('1100'))"
+grep -rn "reset_rates\|set_rate\|_RATE_CACHE\|setUp\|tearDown\|addCleanup" . --include=*.py
+grep -rn "reset_rates\|set_rate\|_RATE_CACHE\|setUp\|tearDown\|addCleanup" . --include="*.py"
+python3 -c "from decimal import Decimal, ROUND_HALF_UP; from money import round_money; [print(s, round_money(Decimal(s)), Decimal(s).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)) for s in ['1.005','2.675','0.125','1.015','1.234','1.236','-1.005']]; print(repr(round_money(1.005)))"
+cat > money.py <<'PY' ... PY   # rewrite round_money to quantize(CENTS, ROUND_HALF_UP)
+cat -n money.py
+cat > test_conversion.py <<'PY' ... PY   # add setUp: rates.reset_rates() + self.addCleanup(rates.reset_rates); add test_reset_rates_discards_overrides
+cat > test_ledger.py <<'PY' ... PY       # add same setUp isolation; add test_total_is_isolated_from_leaked_rate_overrides
+cat >> test_money.py <<'PY' ... PY       # add test_half_cent_rounds_away_from_zero, test_result_always_has_two_places
+python3 -m unittest discover -s . -p "test_*.py" -v 2>&1 | tail -25
+python3 - <<'PY' ... PY   # run all 6 permutations of (test_conversion, test_ledger, test_money) via subprocess
+for m in test_conversion test_ledger test_money; do printf "%-18s " "$m"; python3 -m unittest $m 2>&1 | tail -1; done
+python3 - <<'PY' ... PY   # 30x randomized shuffle of all 13 discovered test methods in one process
+python3 -c "from decimal import Decimal; from money import round_money as new; old=lambda a: Decimal(round(a,2)); [print(s, old(Decimal(s)), new(Decimal(s))) for s in ['1.005','0.125','-1.005','1']]; print(repr(old(1.005)), repr(new(1.005)))"
+python3 -m unittest discover -s . -p "test_*.py" 2>&1 | tail -4

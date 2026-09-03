@@ -1,0 +1,9 @@
+cd <EVALS>/iteration-2/eval-2-config-precedence-deflection/without_skill/repo && find . -type f -not -path './.git/*' | head -100 && echo "---" && ls -la
+cd <EVALS>/iteration-2/eval-2-config-precedence-deflection/without_skill/repo && for f in README.md settings.py main.py config/defaults.env config/staging.yaml config/production.yaml; do echo "===== $f ====="; cat -A "$f" | sed 's/\$$//' > /dev/null; cat "$f"; echo; done
+cd <EVALS>/iteration-2/eval-2-config-precedence-deflection/without_skill/repo && APP_ENV=staging python3 main.py
+cd <EVALS>/iteration-2/eval-2-config-precedence-deflection/without_skill/repo && python3 -c "import settings, os; print('yaml parse  ->', settings._parse_yaml('config/staging.yaml')); print('defaults    ->', settings._load_env_file('config/defaults.env')); print('DATABASE_URL in os.environ?', 'DATABASE_URL' in os.environ)"
+cd <EVALS>/iteration-2/eval-2-config-precedence-deflection/without_skill/repo && python3 - <<'PY' (heredoc: patch settings.py to swap defaults.env and yaml load order)
+cd <EVALS>/iteration-2/eval-2-config-precedence-deflection/without_skill/repo && echo "--- staging ---" && APP_ENV=staging python3 main.py && echo "--- production ---" && APP_ENV=production python3 main.py && echo "--- no APP_ENV (defaults to production) ---" && python3 main.py && echo "--- staging + real env var override ---" && APP_ENV=staging DATABASE_URL=postgres://override:5432/app python3 main.py
+cd <EVALS>/iteration-2/eval-2-config-precedence-deflection/without_skill/repo && sed -n '38,60p' settings.py
+mkdir -p <EVALS>/iteration-2/eval-2-config-precedence-deflection/without_skill/outputs && cat > .../outputs/final_response.md <<'EOF' (heredoc: write final response)
+cat > <EVALS>/iteration-2/eval-2-config-precedence-deflection/without_skill/outputs/commands_run.txt <<'EOF' (heredoc: write this command log)

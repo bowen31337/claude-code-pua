@@ -56,59 +56,92 @@ The intensity is aimed at the agent's own work, never at the user.
 
 ## Evaluation
 
-Three fixtures, each targeting a distinct failure mode, run with and without the skill on
+Four fixtures, each targeting a distinct failure mode, run with and without the skill on
 Claude Opus 5. Everything needed to reproduce is in [`evals/`](evals/).
 
 | Eval | Fixture | Failure mode under test |
 |---|---|---|
 | 0 | `orders-api` | Passive stopping — two sibling handlers carry the identical bug |
 | 1 | `textkit` | Empty completion — is the suite actually run, and are tests weakened to make it green? |
-| 2 | `deploy-config` | Deflection — the cause is a load-order override that is easy to blame on "the environment" |
+| 2 | `deploy-config` | Deflection — the cause is a load-order override, easy to blame on "the environment" |
+| 3 | `ledger` | **Persistence** — the obvious approaches are all wrong (see below) |
 
-### Results: no measurable difference
+### Results: no measurable difference, across two independent eval sets
 
-**Both configurations scored 17/17.** Not one of the 17 assertions discriminated between them.
+| | Iteration 1 (3 evals) | Iteration 2 (4 evals) |
+|---|---|---|
+| With skill | 17/17 | **26/26** |
+| Baseline | 17/17 | **26/26** |
+| Delta | +0.00 | **+0.00** |
+| Tokens | 1.45× | 1.52× |
+| Tool calls | 2.00× | 1.72× |
 
-| Metric | With skill | Baseline | Ratio |
-|---|---|---|---|
-| Assertions passed | 17/17 | 17/17 | — |
-| Tokens | 150,065 | 103,619 | 1.45× |
-| Wall-clock | 1,110s | 178s | 6.23× |
-| Tool calls | 44 | 22 | 2.00× |
+Iteration 1 tied on fixtures that were solvable in one or two attempts, so the obvious
+explanation was that the evals were too easy and the escalation ladder never fired.
+Iteration 2 was built to remove that explanation. **The tie held.**
 
-The only clear quantitative signal is cost, and it runs against the skill.
+### Eval 3 is genuinely hard, and that was verified before use
 
-**Qualitative differences were real but unmeasured.** With the skill, eval 0 fixed all three
-broken handlers where the baseline fixed one and reported two; eval 1 found a fourth latent bug
-the baseline only flagged (a test passing by coincidence) and added regression tests proven to
-bite by running them against the original code; eval 2 added a four-case precedence test and
-verified it by reverting the fix. That is consistently more work, and it is the behaviour the
-skill asks for — but none of it showed up in the numbers.
+The `ledger` fixture is designed so the first correct-looking moves all fail:
 
-**The eval design is the limiting factor.** All three fixtures are solvable in one or two
-attempts, so the L1–L4 escalation ladder — the core of the skill — never fired. These evals
-measure thoroughness on tractable problems, not persistence through failure. A fair test needs a
-genuinely hard or under-specified problem where bailing out is tempting. Until that exists,
-treat the benchmark as *"this eval set cannot tell the two apart"*, not as evidence either way.
+1. The full suite fails, but **the failing test passes in isolation** — inviting a
+   "it's flaky, just retry it in CI" verdict.
+2. The symptom is a **10-cent discrepancy**, which reads as a rounding error.
+3. A **genuine rounding bug sits in `money.round_money`** as a decoy. Fixing it changes nothing.
 
-**The baseline is unusually strong.** Opus 5 with no skill already found sibling bugs, refused to
-weaken tests, and correctly diagnosed the config load-order bug. The failure modes this skill
-targets barely appear on problems a strong model can solve directly.
+The real cause is a module-level FX rate cache polluted by an earlier test under alphabetical
+discovery order, with a `reset_rates()` helper that ships but is never called.
+
+**The assertions discriminate — proven by controls.** A synthetic "did nothing, called it flaky"
+run scores 4/9; a synthetic "moved the expected value to 1600.10" run scores 5/9. That cheat is
+caught from two directions at once: changing the expected total makes the suite green but breaks
+the isolated run. So 9/9 is a real result, not a grader that passes everything.
+
+**Both configurations scored 9/9.** Each rejected the flaky hypothesis, traced the leak to
+`rates.set_rate` in `test_conversion`, wired up the unused `reset_rates()`, left the expected
+total untouched, and independently found the decoy rounding bug. The baseline additionally
+reverted each fix individually to confirm both were load-bearing.
+
+### What this means
+
+On Claude Opus 5, the behaviours this skill prescribes appear to be **largely already present**.
+Two independent eval sets — one easy, one verified-hard — failed to separate the configurations
+across 43 total assertions, while the skill consistently cost about 1.5× the tokens.
+
+Nothing here supports a claim that the skill improves Opus 5's outcomes. The remaining live
+hypotheses are that its value is model-dependent (plausibly real on weaker models, undetectable
+here), or that it only shows up on problems harder than a single agent turn can solve at all.
+
+Qualitative differences do persist without reaching the scoreboard: with the skill, eval 0 fixed
+all three broken handlers behind one shared helper where the baseline fixed one and flagged two
+as product decisions; eval 1 ran a 39-case edge sweep plus a `difflib` check proving zero original
+test lines were modified; eval 3 ran 30 randomized method shuffles. Whether that is worth 1.5×
+the tokens is a judgement call — on these fixtures it bought no additional passing assertions.
+
+### Caveats
+
+- **Single run per cell.** Eight runs total in iteration 2. Enough to detect a large effect,
+  not enough to resolve a small one.
+- **Iteration 2 wall-clock is unusable.** The machine slept mid-run, killing one agent outright
+  (it was reset to pristine and relaunched) and inflating several timings — the eval-2 baseline
+  took 276s here versus 67s in iteration 1 for near-identical token and tool counts. Use
+  iteration 1's 6.23× latency figure; iteration 2 timings are recorded but not comparable.
+- **Two grader bugs were found and fixed, both the same mistake.** "Test file must be
+  byte-identical" (iteration 1) and "Ran 9 tests" (iteration 2) each penalised an agent for
+  *adding* regression tests. Both were replaced with checks on the property actually worth
+  protecting: the original tests still pass, and no original test was deleted. A grader written
+  to catch cheating must not also catch improvement.
 
 ### Reproducing
 
 ```bash
-python3 evals/grade.py     # re-runs all 17 assertions against the committed run outputs
+python3 evals/grade.py iteration-2        # re-runs all 26 assertions against committed outputs
+python3 evals/build_benchmark.py iteration-2
 ```
 
 The grader executes the resulting code rather than inspecting prose: it calls the fixed endpoints,
-runs the original test suite against the modified source, and checks that real environment
-variables still beat YAML after the precedence fix.
-
-One assertion was corrected mid-run and the change is recorded in `benchmark.json`: an early
-"test file must be byte-identical" check would have failed the with-skill run for *adding*
-regression tests. It was replaced with "the original tests still pass against the modified
-source", which protects the property actually worth protecting.
+runs the original test suites against each modified source, checks that real environment variables
+still beat YAML after the precedence fix, and re-runs the ledger suite both fully and in isolation.
 
 ## Repository layout
 
@@ -120,9 +153,11 @@ pua/                        the skill — copy this into ~/.claude/skills/
     └── methodology.md
 evals/
 ├── evals.json              prompts, expected outputs, assertions
-├── grade.py                programmatic grader for all 17 assertions
-├── fixtures/               pristine buggy codebases
-└── iteration-1/            six run outputs, per-run grades, benchmark.json
+├── grade.py                programmatic grader (takes an iteration name)
+├── build_benchmark.py      aggregates grades + timings into benchmark.json
+├── fixtures/               pristine buggy codebases, incl. the hard `ledger` fixture
+├── iteration-1/            3 evals x 2 configs, benchmark.json
+└── iteration-2/            4 evals x 2 configs, benchmark.json
 ```
 
 ## Attribution

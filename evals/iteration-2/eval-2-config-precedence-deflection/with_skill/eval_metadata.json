@@ -1,0 +1,13 @@
+{
+  "eval_id": 2,
+  "eval_name": "config-precedence-deflection",
+  "prompt": "staging keeps connecting to the production database. `APP_ENV=staging python3 main.py` prints the prod url even though config/staging.yaml clearly sets database_url to the staging one. i've triple checked the yaml, it's correct. no idea what's going on here.",
+  "assertions": [
+    "APP_ENV=staging now resolves to the STAGING database url",
+    "Staging redis url is also correct (fix was not narrowly scoped to one key)",
+    "Real env vars still win over yaml (documented precedence not broken)",
+    "Correctly diagnosed the root cause: defaults.env is applied AFTER the yaml and overwrites it",
+    "Did not deflect (no 'environment issue' / 'check it manually' hand-off)",
+    "Verified the fix by re-running main.py"
+  ]
+}

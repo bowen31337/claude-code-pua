@@ -1,0 +1,23 @@
+find <EVALS>/iteration-2/eval-2-config-precedence-deflection/with_skill/repo -type f -not -path "*/.git/*" | head -100
+for f in README.md main.py settings.py config/defaults.env config/staging.yaml config/production.yaml; do echo "===== $f ====="; cat "$f"; echo; done
+python3 -V
+APP_ENV=staging python3 main.py
+APP_ENV=staging python3 -c "import settings, os; print(settings.__file__); print(settings.CONFIG_DIR); print(settings._parse_yaml(os.path.join(settings.CONFIG_DIR,'staging.yaml'))); print(settings._load_env_file(os.path.join(settings.CONFIG_DIR,'defaults.env'))); print('DATABASE_URL' in os.environ)"
+cp settings.py /private/tmp/claude-501/-Users-bowenli-projects-agent-pua-skill/ee67e25d-a502-47dc-8b1b-e0690aeb376f/scratchpad/settings.py.bak
+python3 - <<'PY'  # in-place patch of settings.py: reorder defaults.env before {env}.yaml
+PY
+diff -u /private/tmp/.../settings.py.bak settings.py
+/usr/bin/diff -u /private/tmp/claude-501/-Users-bowenli-projects-agent-pua-skill/ee67e25d-a502-47dc-8b1b-e0690aeb376f/scratchpad/settings.py.bak settings.py
+APP_ENV=staging python3 main.py
+APP_ENV=production python3 main.py
+python3 main.py
+APP_ENV=staging DATABASE_URL=postgres://override:5432/app LOG_LEVEL=trace python3 main.py
+python3 - <<'PY'  # sibling check: defaults.env keys not covered by each env yaml; keys dropped by the flat parser
+PY
+printf 'environment: probe\ndatabase_url: postgres://probe:5432/app # temporary\n' > config/probe.yaml
+APP_ENV=probe python3 main.py
+APP_ENV=qa python3 main.py 2>&1 | tail -3
+rm -f config/probe.yaml
+python3 -m py_compile settings.py main.py
+ls -1 config/
+APP_ENV=staging python3 main.py

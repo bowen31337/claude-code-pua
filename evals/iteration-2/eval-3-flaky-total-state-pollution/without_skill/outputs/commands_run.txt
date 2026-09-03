@@ -1,0 +1,24 @@
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && ls -la && find . -type f -not -path './.git/*' | head -100
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && for f in README.md money.py rates.py ledger.py; do echo "===== $f ====="; cat -n "$f"; done
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && for f in test_ledger.py test_money.py test_conversion.py; do echo "===== $f ====="; cat -n "$f"; done
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && python3 -m unittest discover -s . -p "test_*.py" -v 2>&1 | tail -30
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && python3 -m unittest test_ledger -v 2>&1 | tail -10
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && python3 -c 'import rates; from decimal import Decimal; from ledger import Ledger; print(rates.get_rate("EUR")); print(Ledger().add("500.00","USD").add("1000.00","EUR").total_usd()); rates.set_rate("EUR","1.1001"); print(rates.get_rate("EUR")); print(Ledger().add("500.00","USD").add("1000.00","EUR").total_usd())'
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && python3 -m unittest test_ledger test_conversion 2>&1 | tail -3
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && python3 -c 'from decimal import Decimal, ROUND_HALF_UP; from money import round_money; [print(v, round_money(Decimal(v)), Decimal(v).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)) for v in ["1.005","1.015","1.025","2.675","0.125"]]'
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && cat > /tmp/mp.py <<'PY' ... PY  # patch script: money.py round_money -> quantize(CENTS, ROUND_HALF_UP)
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && python3 /tmp/mp.py && cat -n money.py
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && cat > /tmp/tc.py <<'PY' ... PY  # patch script: test_conversion.py addCleanup(rates.reset_rates) + reset test
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && python3 /tmp/tc.py && cat -n test_conversion.py
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && cat > /tmp/tm.py <<'PY' ... PY  # patch script: test_money.py half-cent regression test
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && python3 /tmp/tm.py && python3 -m unittest discover -s . -p "test_*.py" -v 2>&1 | tail -20
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && python3 - <<'PY' ... PY  # run all 6 permutations of the 3 test modules via subprocess
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && for i in 1 2 3 4 5; do python3 -m unittest discover -s . -p "test_*.py" 2>&1 | tail -1; done
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && cp test_conversion.py /tmp/tc.bak && python3 - <<'PY' ... PY  # strip setUp to prove cleanup is load-bearing
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && python3 -m unittest discover -s . -p "test_*.py" 2>&1 | tail -4
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && cp /tmp/tc.bak test_conversion.py
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && cp money.py /tmp/m.bak && python3 - <<'PY' ... PY  # revert round_money to prove quantize fix is load-bearing
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && python3 -m unittest test_money 2>&1 | tail -4
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && cp /tmp/m.bak money.py
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && python3 -m unittest discover -s . -p "test_*.py" 2>&1 | tail -3
+cd <EVALS>/iteration-2/eval-3-flaky-total-state-pollution/without_skill/repo && rm -f /tmp/mp.py /tmp/tc.py /tmp/tm.py /tmp/tc.bak /tmp/m.bak && rm -rf __pycache__ && python3 -m unittest discover -s . -p "test_*.py" 2>&1 | tail -3 && rm -rf __pycache__ && ls
