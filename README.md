@@ -66,19 +66,25 @@ Claude Opus 5. Everything needed to reproduce is in [`evals/`](evals/).
 | 2 | `deploy-config` | Deflection — the cause is a load-order override, easy to blame on "the environment" |
 | 3 | `ledger` | **Persistence** — the obvious approaches are all wrong (see below) |
 
-### Results: no measurable difference, across two independent eval sets
+### Results: no measurable difference, across three independent eval sets
 
-| | Iteration 1 (3 evals) | Iteration 2 (4 evals) |
-|---|---|---|
-| With skill | 17/17 | **26/26** |
-| Baseline | 17/17 | **26/26** |
-| Delta | +0.00 | **+0.00** |
-| Tokens | 1.45× | 1.52× |
-| Tool calls | 2.00× | 1.72× |
+| | Iteration 1 (3 evals) | Iteration 2 (4 evals) | Iteration 5 (4 evals, trimmed skill) |
+|---|---|---|---|
+| With skill | 17/17 | 26/26 | **26/26** |
+| Baseline | 17/17 | 26/26 | **26/26** |
+| Delta | +0.00 | +0.00 | **+0.00** |
+| Tokens | 1.45× | 1.52× | **1.39×** |
+| Tool calls | 2.00× | 1.72× | **1.57×** |
 
-Iteration 1 tied on fixtures that were solvable in one or two attempts, so the obvious
-explanation was that the evals were too easy and the escalation ladder never fired.
-Iteration 2 was built to remove that explanation. **The tie held.**
+Iteration 1 tied on fixtures solvable in one or two attempts, so the obvious explanation was that
+the evals were too easy and the escalation ladder never fired. Iteration 2 added a fixture built
+to remove that explanation, and the tie held. Iteration 5 re-ran the full suite on the trimmed and
+gated skill with baselines executed under identical conditions rather than reused — **and it held
+again.**
+
+Across three eval sets and **69 total assertions, not one has ever discriminated** between the two
+configurations. The cost ratio did improve with the trim (1.52× → 1.39× tokens), but it remains
+the only consistent signal, and it points the wrong way.
 
 ### Eval 3 is genuinely hard, and that was verified before use
 
@@ -120,8 +126,8 @@ the tokens is a judgement call — on these fixtures it bought no additional pas
 
 ### Caveats
 
-- **Single run per cell.** Eight runs total in iteration 2. Enough to detect a large effect,
-  not enough to resolve a small one.
+- **Single run per cell.** Eight runs per iteration. Enough to detect a large effect, not enough
+  to resolve a small one — though the effect has now failed to appear three times.
 - **Iteration 2 wall-clock is unusable.** The machine slept mid-run, killing one agent outright
   (it was reset to pristine and relaunched) and inflating several timings — the eval-2 baseline
   took 276s here versus 67s in iteration 1 for near-identical token and tool counts. Use
@@ -135,8 +141,9 @@ the tokens is a judgement call — on these fixtures it bought no additional pas
 ### Reproducing
 
 ```bash
-python3 evals/grade.py iteration-2        # re-runs all 26 assertions against committed outputs
-python3 evals/build_benchmark.py iteration-2
+python3 evals/grade.py iteration-5        # re-runs all 26 assertions against committed outputs
+python3 evals/build_benchmark.py iteration-5
+python3 evals/check_reference_loading.py <transcript-dir>   # which references a run opened
 ```
 
 The grader executes the resulting code rather than inspecting prose: it calls the fixed endpoints,
@@ -191,7 +198,8 @@ evals/
 ├── iteration-1/            3 evals x 2 configs, benchmark.json
 ├── iteration-2/            4 evals x 2 configs, benchmark.json
 ├── iteration-3/            reference-gating verification
-└── iteration-4/            post-trim verification
+├── iteration-4/            post-trim verification
+└── iteration-5/            full suite on the trimmed skill, 4 evals x 2 configs
 ```
 
 ## Attribution

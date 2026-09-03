@@ -1,0 +1,5 @@
+ls -la && find . -type f -not -path './.git/*' | head -50
+cat error.log; cat README.md; cat -n app.py; cat -n db.py
+python3 - <<'PY' (patch app.py: replace params["limit"] with params.get("limit", 50)); sed -n '6,10p' app.py
+python3 -c "from app import handle; print(handle('/orders', {})); print(handle('/orders', {'limit': '10'})); print(handle('/orders', {'limit': '10', 'status': 'open'})); print(handle('/orders', {'status': 'open'})); print(handle('/health', {}))"
+for p in /users /reports; do python3 -c "from app import handle; try: handle(p, {}) except Exception as e: print(e)"; done

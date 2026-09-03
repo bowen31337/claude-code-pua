@@ -1,0 +1,9 @@
+ls -la && echo "---" && python3 -m unittest test_slugify 2>&1 | tail -60
+ls -la && echo "=== test_slugify.py ===" && cat -n test_slugify.py && echo "=== other py ===" && for f in $(ls *.py | grep -v test_slugify); do echo "--- $f ---"; cat -n "$f"; done
+find . -type f -not -path './.git/*' | sort && echo "=== slugify.py ===" && cat -n slugify.py
+cp slugify.py <scratchpad>/slugify.py.bak && python3 - <<'PY' ... (in-place edit script applying the 3 fixes) ... PY && echo "=== result ===" && cat -n slugify.py
+python3 -m unittest test_slugify -v 2>&1 | tail -20
+python3 - <<'PY' ... (edge-case probe of slugify/truncate/word_count) ... PY
+diff -u <scratchpad>/slugify.py.bak slugify.py; echo "=== test_slugify.py unchanged? ===" && git status; echo "=== clean re-run ===" && rm -rf __pycache__ && python3 -m unittest test_slugify 2>&1 | tail -5
+/usr/bin/diff -u <scratchpad>/slugify.py.bak slugify.py
+mkdir -p ../outputs && cat > ../outputs/commands_run.txt <<'EOF' ... EOF

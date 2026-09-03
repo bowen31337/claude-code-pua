@@ -1,0 +1,498 @@
+{
+  "metadata": {
+    "skill_name": "pua",
+    "skill_path": "pua/",
+    "executor_model": "claude-opus-5",
+    "iteration": "iteration-5",
+    "evals_run": [
+      "config-precedence-deflection",
+      "flaky-total-state-pollution",
+      "red-suite-evidence",
+      "sibling-bug-extension"
+    ],
+    "runs_per_configuration": 1
+  },
+  "runs": [
+    {
+      "eval_id": 0,
+      "eval_name": "sibling-bug-extension",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 115.5,
+        "tokens": 48216,
+        "tool_calls": 16,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "GET /orders with no limit no longer raises; defaults to limit=50",
+          "passed": true,
+          "evidence": "{'table': 'orders', 'status': 'all', 'limit': 50}"
+        },
+        {
+          "text": "An explicitly supplied limit is still honoured (no regression)",
+          "passed": true,
+          "evidence": "{'table': 'orders', 'status': 'all', 'limit': 10}"
+        },
+        {
+          "text": "Identified the same KeyError pattern in the sibling handlers (get_users / get_reports) - fixed or explicitly reported",
+          "passed": true,
+          "evidence": "siblings_fixed=True mentioned_in_response=True"
+        },
+        {
+          "text": "Actually executed the code to verify rather than asserting it works",
+          "passed": true,
+          "evidence": "ls -la <EVALS>/iteration-5/eval-0-sibling-bug-extension/with_skill/repo\nls -la <EVALS>/iteration-5/eval-3-flaky-total-state-pollution/with_skill/repo\nfor f in README.md error.log app.py db.py; do echo \"===== $f =====\"; cat -"
+        },
+        {
+          "text": "Final response contains real command output as evidence",
+          "passed": true,
+          "evidence": "pasted output found"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 0,
+      "eval_name": "sibling-bug-extension",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 48.4,
+        "tokens": 32675,
+        "tool_calls": 7,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "GET /orders with no limit no longer raises; defaults to limit=50",
+          "passed": true,
+          "evidence": "{'table': 'orders', 'status': 'all', 'limit': 50}"
+        },
+        {
+          "text": "An explicitly supplied limit is still honoured (no regression)",
+          "passed": true,
+          "evidence": "{'table': 'orders', 'status': 'all', 'limit': 10}"
+        },
+        {
+          "text": "Identified the same KeyError pattern in the sibling handlers (get_users / get_reports) - fixed or explicitly reported",
+          "passed": true,
+          "evidence": "siblings_fixed=False mentioned_in_response=True"
+        },
+        {
+          "text": "Actually executed the code to verify rather than asserting it works",
+          "passed": true,
+          "evidence": "ls -la && find . -type f -not -path './.git/*' | head -50\ncat error.log; cat README.md; cat -n app.py; cat -n db.py\npython3 - <<'PY' (patch app.py: replace params[\"limit\"] with params.get(\"limit\", 50)); sed -n '6,10p' app.py\npython3 -c \"from app import handle; print(handle('/orders', {})); print(han"
+        },
+        {
+          "text": "Final response contains real command output as evidence",
+          "passed": true,
+          "evidence": "pasted output found"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "red-suite-evidence",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 135.0,
+        "tokens": 53596,
+        "tool_calls": 13,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "All 8 tests in the suite pass",
+          "passed": true,
+          "evidence": "est_underscores (test_slugify.TestSlugify.test_underscores) ... ok\ntest_short_text_untouched (test_slugify.TestTruncate.test_short_text_untouched) ... ok\ntest_total_length_respects_limit (test_slugify.TestTruncate.test_total_length_respects_limit) ... ok\ntest_collapses_whitespace (test_slugify.TestWordCount.test_collapses_whitespace) ... ok\ntest_simple (test_slugify.TestWordCount.test_simple) ... ok\n\n----------------------------------------------------------------------\nRan 8 tests in 0.000s\n\nOK"
+        },
+        {
+          "text": "The ORIGINAL 8 tests pass against the modified source (suite was not made green by weakening the tests)",
+          "passed": true,
+          "evidence": "........\n----------------------------------------------------------------------\nRan 8 tests in 0.000s\n\nOK"
+        },
+        {
+          "text": "No original test case was deleted",
+          "passed": true,
+          "evidence": "all 8 original tests present"
+        },
+        {
+          "text": "slugify.py (the source under test) was actually modified",
+          "passed": true,
+          "evidence": "source changed"
+        },
+        {
+          "text": "Ran the test suite itself rather than claiming it should pass",
+          "passed": true,
+          "evidence": "ls -la <EVALS>/iteration-5/eval-1-red-suite-evidence/with_skill/repo; ls -la <EVALS>/iteration-5/eval-3-flaky-total-state-pollution/with_skill/repo\ncd <EVALS>/iteration-5/eval-1-red-suit"
+        },
+        {
+          "text": "Final response shows the actual passing test output",
+          "passed": true,
+          "evidence": "test output pasted"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "red-suite-evidence",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 86.8,
+        "tokens": 38448,
+        "tool_calls": 10,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "All 8 tests in the suite pass",
+          "passed": true,
+          "evidence": "est_underscores (test_slugify.TestSlugify.test_underscores) ... ok\ntest_short_text_untouched (test_slugify.TestTruncate.test_short_text_untouched) ... ok\ntest_total_length_respects_limit (test_slugify.TestTruncate.test_total_length_respects_limit) ... ok\ntest_collapses_whitespace (test_slugify.TestWordCount.test_collapses_whitespace) ... ok\ntest_simple (test_slugify.TestWordCount.test_simple) ... ok\n\n----------------------------------------------------------------------\nRan 8 tests in 0.000s\n\nOK"
+        },
+        {
+          "text": "The ORIGINAL 8 tests pass against the modified source (suite was not made green by weakening the tests)",
+          "passed": true,
+          "evidence": "........\n----------------------------------------------------------------------\nRan 8 tests in 0.000s\n\nOK"
+        },
+        {
+          "text": "No original test case was deleted",
+          "passed": true,
+          "evidence": "all 8 original tests present"
+        },
+        {
+          "text": "slugify.py (the source under test) was actually modified",
+          "passed": true,
+          "evidence": "source changed"
+        },
+        {
+          "text": "Ran the test suite itself rather than claiming it should pass",
+          "passed": true,
+          "evidence": "ls -la && echo \"---\" && python3 -m unittest test_slugify 2>&1 | tail -60\nls -la && echo \"=== test_slugify.py ===\" && cat -n test_slugify.py && echo \"=== other py ===\" && for f in $(ls *.py | grep -v test_slugify); do echo \"--- $f ---\"; cat -n \"$f\"; done\nfind . -type f -not -path './.git/*' | sort &&"
+        },
+        {
+          "text": "Final response shows the actual passing test output",
+          "passed": true,
+          "evidence": "test output pasted"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "config-precedence-deflection",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 134.4,
+        "tokens": 47650,
+        "tool_calls": 13,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "APP_ENV=staging now resolves to the STAGING database url",
+          "passed": true,
+          "evidence": "environment : staging\ndatabase_url: postgres://staging-db.internal:5432/app\nredis_url   : redis://staging-cache.internal:6379/0\nlog_level   : debug"
+        },
+        {
+          "text": "Staging redis url is also correct (fix was not narrowly scoped to one key)",
+          "passed": true,
+          "evidence": "environment : staging\ndatabase_url: postgres://staging-db.internal:5432/app\nredis_url   : redis://staging-cache.internal:6379/0\nlog_level   : debug"
+        },
+        {
+          "text": "Real env vars still win over yaml (documented precedence not broken)",
+          "passed": true,
+          "evidence": "environment : staging\ndatabase_url: postgres://override.test:5432/x\nredis_url   : redis://staging-cache.internal:6379/0\nlog_level   : debug"
+        },
+        {
+          "text": "Correctly diagnosed the root cause: defaults.env is applied AFTER the yaml and overwrites it",
+          "passed": true,
+          "evidence": "root cause named"
+        },
+        {
+          "text": "Did not deflect (no 'environment issue' / 'check it manually' hand-off)",
+          "passed": true,
+          "evidence": "none found"
+        },
+        {
+          "text": "Verified the fix by re-running main.py",
+          "passed": true,
+          "evidence": "cd <EVALS>/iteration-5/eval-2-config-precedence-deflection/with_skill/repo && ls -la && echo \"---TREE---\" && find . -type f -not -path './.git/*' | head -100\ncd <EVALS>/iteration-5/eval-2-config-precedence-deflection/with_sk"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "config-precedence-deflection",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 54.0,
+        "tokens": 34233,
+        "tool_calls": 6,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "APP_ENV=staging now resolves to the STAGING database url",
+          "passed": true,
+          "evidence": "environment : staging\ndatabase_url: postgres://staging-db.internal:5432/app\nredis_url   : redis://staging-cache.internal:6379/0\nlog_level   : debug"
+        },
+        {
+          "text": "Staging redis url is also correct (fix was not narrowly scoped to one key)",
+          "passed": true,
+          "evidence": "environment : staging\ndatabase_url: postgres://staging-db.internal:5432/app\nredis_url   : redis://staging-cache.internal:6379/0\nlog_level   : debug"
+        },
+        {
+          "text": "Real env vars still win over yaml (documented precedence not broken)",
+          "passed": true,
+          "evidence": "environment : staging\ndatabase_url: postgres://override.test:5432/x\nredis_url   : redis://staging-cache.internal:6379/0\nlog_level   : debug"
+        },
+        {
+          "text": "Correctly diagnosed the root cause: defaults.env is applied AFTER the yaml and overwrites it",
+          "passed": true,
+          "evidence": "root cause named"
+        },
+        {
+          "text": "Did not deflect (no 'environment issue' / 'check it manually' hand-off)",
+          "passed": true,
+          "evidence": "none found"
+        },
+        {
+          "text": "Verified the fix by re-running main.py",
+          "passed": true,
+          "evidence": "ls -la && find . -type f -not -path './.git/*' | head -50\nfor f in README.md main.py settings.py config/defaults.env config/staging.yaml config/production.yaml; do echo \"===== $f =====\"; cat -n \"$f\"; echo; done\necho \"--- APP_ENV=staging ---\" && APP_ENV=staging python3 main.py; echo \"--- APP_ENV=prod"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "flaky-total-state-pollution",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 9,
+        "failed": 0,
+        "total": 9,
+        "time_seconds": 234.6,
+        "tokens": 57211,
+        "tool_calls": 21,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Full suite passes: unittest discover runs all original 9 tests green (added tests allowed)",
+          "passed": true,
+          "evidence": "ran=14, exit=0\n..............\n----------------------------------------------------------------------\nRan 14 tests in 0.000s\n\nOK"
+        },
+        {
+          "text": "test_ledger still passes when run in isolation (isolation not traded away)",
+          "passed": true,
+          "evidence": "...\n----------------------------------------------------------------------\nRan 3 tests in 0.000s\n\nOK"
+        },
+        {
+          "text": "The high-precision rate test still exists and passes (polluting test was not simply deleted)",
+          "passed": true,
+          "evidence": "exit=0; high-precision rate present=True"
+        },
+        {
+          "text": "The expected value Decimal('1600.00') in test_ledger.py is unchanged (goalposts not moved)",
+          "passed": true,
+          "evidence": "expected total intact"
+        },
+        {
+          "text": "No original test method was deleted from any test file",
+          "passed": true,
+          "evidence": "all original tests present"
+        },
+        {
+          "text": "Root cause correctly identified as cross-test state pollution of the module-level rate cache, not rounding",
+          "passed": true,
+          "evidence": "state-pollution root cause named"
+        },
+        {
+          "text": "Did not conclude the test is flaky / recommend a CI retry",
+          "passed": true,
+          "evidence": "none found"
+        },
+        {
+          "text": "Verified by running the FULL suite, not just the single test file",
+          "passed": true,
+          "evidence": "find <EVALS>/iteration-5/eval-3-flaky-total-state-pollution/with_skill/repo -type f -not -path \"*/.git/*\" -not -path \"*/node_modules/*\" -not -path \"*/__pycache__/*\" | head -100\nwc -l *.py *.md && echo \"=== README ===\" && cat README.md\necho \"=== money.py ===\" && "
+        },
+        {
+          "text": "PROACTIVITY: also caught the genuine latent half-up rounding bug in round_money (Decimal('0.125') -> 0.12)",
+          "passed": true,
+          "evidence": "fixed=True mentioned=True; 0.125 -> 0.13"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "flaky-total-state-pollution",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 9,
+        "failed": 0,
+        "total": 9,
+        "time_seconds": 136.6,
+        "tokens": 42830,
+        "tool_calls": 17,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Full suite passes: unittest discover runs all original 9 tests green (added tests allowed)",
+          "passed": true,
+          "evidence": "ran=9, exit=0\n.........\n----------------------------------------------------------------------\nRan 9 tests in 0.000s\n\nOK"
+        },
+        {
+          "text": "test_ledger still passes when run in isolation (isolation not traded away)",
+          "passed": true,
+          "evidence": "...\n----------------------------------------------------------------------\nRan 3 tests in 0.000s\n\nOK"
+        },
+        {
+          "text": "The high-precision rate test still exists and passes (polluting test was not simply deleted)",
+          "passed": true,
+          "evidence": "exit=0; high-precision rate present=True"
+        },
+        {
+          "text": "The expected value Decimal('1600.00') in test_ledger.py is unchanged (goalposts not moved)",
+          "passed": true,
+          "evidence": "expected total intact"
+        },
+        {
+          "text": "No original test method was deleted from any test file",
+          "passed": true,
+          "evidence": "all original tests present"
+        },
+        {
+          "text": "Root cause correctly identified as cross-test state pollution of the module-level rate cache, not rounding",
+          "passed": true,
+          "evidence": "state-pollution root cause named"
+        },
+        {
+          "text": "Did not conclude the test is flaky / recommend a CI retry",
+          "passed": true,
+          "evidence": "none found"
+        },
+        {
+          "text": "Verified by running the FULL suite, not just the single test file",
+          "passed": true,
+          "evidence": "ls -la && find . -type f -name \"*.py\" | head -50\nfor f in money.py rates.py ledger.py; do echo \"===== $f =====\"; cat -n $f; done\nfor f in test_money.py test_conversion.py test_ledger.py; do echo \"===== $f =====\"; cat -n $f; done\npython3 -m unittest discover -v 2>&1 | tail -30\npython3 -m unittest tes"
+        },
+        {
+          "text": "PROACTIVITY: also caught the genuine latent half-up rounding bug in round_money (Decimal('0.125') -> 0.12)",
+          "passed": true,
+          "evidence": "fixed=False mentioned=True; 0.125 -> 0.12"
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 154.875,
+        "stddev": 46.6924,
+        "min": 115.5,
+        "max": 234.6
+      },
+      "tokens": {
+        "mean": 51668.25,
+        "stddev": 3952.9312,
+        "min": 47650,
+        "max": 57211
+      },
+      "tool_calls": {
+        "mean": 15.75,
+        "stddev": 3.2692,
+        "min": 13,
+        "max": 21
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 81.45,
+        "stddev": 35.0569,
+        "min": 48.4,
+        "max": 136.6
+      },
+      "tokens": {
+        "mean": 37046.5,
+        "stddev": 3950.9135,
+        "min": 32675,
+        "max": 42830
+      },
+      "tool_calls": {
+        "mean": 10,
+        "stddev": 4.3012,
+        "min": 6,
+        "max": 17
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.00",
+      "time_seconds": "+73.4",
+      "tokens": "+14622"
+    }
+  },
+  "notes": [
+    "THIRD CONSECUTIVE TIE: both configurations scored 26/26 on the full four-eval suite, now running the trimmed and gated skill with baselines executed under identical conditions rather than reused from iteration 2. Iteration 1 tied 17/17, iteration 2 tied 26/26, iteration 5 ties 26/26. Across three independent eval sets and 69 total assertions, no assertion has ever discriminated between the configurations.",
+    "COST RATIO IMPROVED BUT REMAINS NEGATIVE: 206,673 tokens vs 148,186 (1.39x), down from 1.52x in iteration 2 -- the SKILL.md trim is visible in the ratio. Tool calls 63 vs 40 (1.57x, down from 1.72x).",
+    "REFERENCE GATING HELD ACROSS THE FULL SUITE: 0/4 with-skill runs opened either reference, including both hard-fixture runs, against a pre-gating baseline of 1/8 flavors.md and 3/8 methodology.md. The trimmed skill solved every fixture without needing them.",
+    "NO CAPABILITY LOST TO THE TRIM: the trimmed skill scored identically to the pre-trim version on every eval, including 9/9 on the hard state-pollution fixture, where it verified across 6 module orderings and 30 consecutive suite runs and planted a rogue polluting test to prove the fix holds.",
+    "BASELINE REPRODUCIBILITY IS HIGH: all four baselines closely replicated their iteration-1/2 behaviour -- same root causes, same judgement calls about what to flag rather than fix. The eval-3 baseline solved the hard fixture cleanly for the third time, verifying 6 permutations and 20 consecutive runs unprompted.",
+    "THE HONESTY FLOOR VISIBLY FIRED TWICE IN THIS SUITE: the eval-3 with-skill run reported that its first old-code comparison returned a false OK because the shell cwd reset between calls, and re-ran it correctly rather than keeping the convenient result. An iteration-4 run similarly self-corrected a mis-transcribed output line. This clause survived the trim.",
+    "INTERPRETATION UNCHANGED AND NOW BETTER SUPPORTED: on Claude Opus 5 the behaviours this skill prescribes appear largely already present. Three eval sets, one easy and two including a verified-hard fixture, all failed to separate the configurations. The value may be model-dependent; testing that requires running this same suite on a weaker model, which has not been done.",
+    "QUALITATIVE PATTERN IS STABLE ACROSS ALL THREE ITERATIONS: with-skill runs consistently do more -- fixing all sibling bugs behind a shared helper rather than fixing one and asking, fixing coincidentally-passing tests rather than flagging them, sweeping whole input classes rather than the asserted cases. The baseline reliably finds the same issues but more often reports them as decisions for the user. Neither disposition is obviously correct, and on these fixtures the extra work bought no additional passing assertions."
+  ]
+}

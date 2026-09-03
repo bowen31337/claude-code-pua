@@ -1,0 +1,5 @@
+ls -la && find . -type f -not -path './.git/*' | head -50
+for f in README.md main.py settings.py config/defaults.env config/staging.yaml config/production.yaml; do echo "===== $f ====="; cat -n "$f"; echo; done
+echo "--- APP_ENV=staging ---" && APP_ENV=staging python3 main.py; echo "--- APP_ENV=production ---" && APP_ENV=production python3 main.py; echo "--- env override check ---" && APP_ENV=staging DATABASE_URL=postgres://override/db python3 main.py
+python3 - <<'PY' (in-place patch of settings.py: swap defaults.env and yaml load order)
+echo "--- APP_ENV=staging ---" && APP_ENV=staging python3 main.py; echo "--- APP_ENV=production ---" && APP_ENV=production python3 main.py; echo "--- real env var wins ---" && APP_ENV=staging DATABASE_URL=postgres://override/db LOG_LEVEL=trace python3 main.py; echo "--- no APP_ENV (defaults to production) ---" && python3 main.py

@@ -1,0 +1,22 @@
+ls -la && find . -type f -name "*.py" | head -50
+for f in money.py rates.py ledger.py; do echo "===== $f ====="; cat -n $f; done
+for f in test_money.py test_conversion.py test_ledger.py; do echo "===== $f ====="; cat -n $f; done
+python3 -m unittest discover -v 2>&1 | tail -30
+python3 -m unittest test_ledger -v 2>&1 | tail -12
+python3 -c "import rates; from decimal import Decimal; print(rates.get_rate('EUR')); rates.set_rate('EUR','1.1001'); print(rates.get_rate('EUR')); print(rates.to_usd(Decimal('1000'),'EUR'))"
+python3 -m unittest test_ledger test_conversion 2>&1 | tail -4
+python3 -m unittest test_conversion test_ledger 2>&1 | tail -5
+python3 - <<'PY'  # patch test_conversion.py to add setUp/tearDown calling rates.reset_rates()
+PY
+cat -n test_conversion.py
+python3 -m unittest discover 2>&1 | tail -3
+for o in "test_conversion test_ledger test_money" "test_ledger test_conversion test_money" "test_money test_conversion test_ledger" "test_conversion test_money test_ledger"; do echo "=== $o ==="; python3 -m unittest $o 2>&1 | tail -2; done
+python3 -m unittest test_conversion test_ledger test_money 2>&1 | head -30
+for o in "test_conversion test_ledger test_money" "test_ledger test_conversion test_money"; do echo "=== $o ==="; python3 -m unittest ${=o} 2>&1 | tail -20; done
+python3 - <<'PY'  # run all 6 module permutations via subprocess, report pass/fail
+PY
+fails=0; for i in $(seq 1 20); do python3 -m unittest discover -q >/dev/null 2>&1 || fails=$((fails+1)); done; echo "failures: $fails / 20"
+python3 -m pytest -q 2>&1 | tail -5
+python3 -c "from decimal import Decimal, ROUND_HALF_UP; from money import round_money; [print(v, round_money(Decimal(v)), Decimal(v).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)) for v in ['1.225','1.235','2.675','0.005','1.245']]"
+grep -n "ROUND_HALF_UP\|CENTS" money.py
+grep -n "set_rate\|reset_rates\|_RATE_CACHE\|_DEFAULT\|global \|setattr\|monkeypatch\|patch(" *.py

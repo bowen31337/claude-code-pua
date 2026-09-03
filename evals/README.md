@@ -12,14 +12,15 @@ Claude Opus 5 — once with the skill loaded, once with no skill — from identi
 
 ## Result
 
-| | Iteration 1 | Iteration 2 |
-|---|---|---|
-| With skill | 17/17 | 26/26 |
-| Baseline | 17/17 | 26/26 |
+| | Iteration 1 | Iteration 2 | Iteration 5 (trimmed skill) |
+|---|---|---|---|
+| With skill | 17/17 | 26/26 | 26/26 |
+| Baseline | 17/17 | 26/26 | 26/26 |
 
-Two independent eval sets, no measurable difference either time. Iteration 1 tied on easy
-fixtures; iteration 2 added a fixture verified to be hard and the tie held. See the root README
-for the full reading and caveats.
+Three independent eval sets, no measurable difference any time — 69 assertions, none
+discriminating. Iteration 1 tied on easy fixtures; iteration 2 added a verified-hard fixture and
+the tie held; iteration 5 re-ran the full suite on the trimmed skill with fresh baselines and it
+held again. See the root README for the full reading and caveats.
 
 ## Layout
 
