@@ -1,0 +1,22 @@
+ls -la
+find . -type f -not -path './.git/*' | head -100
+cat error.log
+cat README.md
+cat -n db.py
+cat -n app.py
+python3 --version
+python3 -c "from app import handle; print(handle('/orders', {}))"
+grep -n 'params\[' *.py
+grep -n 'params.get' *.py
+python3 -c "from app import handle, ROUTES; [print route-by-route probe of every ROUTE with empty params]"
+cp app.py <scratchpad>/app.py.bak
+cat > app.py <<'EOF' ... EOF   (rewrote app.py with int_param helper)
+diff <scratchpad>/app.py.bak app.py
+python3 -c "<verification matrix: sections A/B/C/D over all routes, explicit params, zero-values, non-numeric, unknown path>"
+python3 -c "from app import handle; print(handle('/orders', {}))"
+cat -n app.py
+mkdir -p <outputs>
+cat > <outputs>/final_response.md <<'MDEOF' ... MDEOF
+python3 - <<'PY' ... PY   (corrected one mis-transcribed output line in final_response.md)
+grep -n "status=open" final_response.md
+cat > <outputs>/commands_run.txt <<'TXTEOF' ... TXTEOF

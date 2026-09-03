@@ -1,0 +1,45 @@
+find . -type f -not -path './.git/*' -not -path '*/__pycache__/*' -not -path '*/node_modules/*' | head -100
+ls -la
+for f in README.md money.py rates.py ledger.py; do echo "=============== $f ==============="; cat -n "$f"; done
+for f in test_money.py test_conversion.py test_ledger.py; do echo "=============== $f ==============="; cat -n "$f"; done
+python3 --version
+python3 -m unittest discover -s . -p "test_*.py" -v
+for i in 1 2 3; do python3 -m unittest test_ledger 2>&1 | tail -1; done
+python3 -m unittest test_conversion test_ledger
+python3 -m unittest test_ledger test_conversion
+python3 -m unittest test_conversion.TestConversion.test_set_rate_accepts_high_precision test_ledger.TestLedger.test_multi_currency_total
+grep -rn "set_rate\|_RATE_CACHE\|reset_rates\|global " --include=*.py .
+grep -rn -e "set_rate" -e "_RATE_CACHE" -e "reset_rates" -e "^_" --include='*.py' .
+python3 -c "from decimal import Decimal; print('1000 * 1.1001 =', Decimal('1000')*Decimal('1.1001')); print('total =', Decimal('500')+Decimal('1000')*Decimal('1.1001'))"
+python3 -c "from decimal import Decimal, ROUND_HALF_UP; from money import round_money; [print(s, round_money(Decimal(s)), Decimal(s).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)) for s in ['1.225','1.235','2.675','0.005','1.005','-1.225']]"
+git log --oneline -20 | head -20
+grep -rn -e "CENTS" -e "ROUND_HALF_UP" --include='*.py' .
+python3 -m unittest --help 2>&1 | grep -i -e shuffle -e random -e seed
+cat > money.py <<'HEREDOC' ... HEREDOC   # rewrite round_money to use quantize(CENTS, ROUND_HALF_UP)
+cat -n money.py
+cat > test_conversion.py <<'HEREDOC' ... HEREDOC   # add setUp/addCleanup rate reset
+cat > test_ledger.py <<'HEREDOC' ... HEREDOC   # add setUp/addCleanup rate reset + regression test
+cat > test_money.py <<'HEREDOC' ... HEREDOC   # add half-cent rounding tests
+python3 - <<'PY' ... PY   # patch test_ledger.py regression test to run the real fixture
+cat -n test_ledger.py
+cat > rates.py <<'HEREDOC' ... HEREDOC   # add rate_override() context manager + set_rate warning
+python3 - <<'PY' ... PY   # patch test_conversion.py to use rates.rate_override()
+cat -n test_conversion.py
+python3 -m unittest discover -s . -p "test_*.py" -v
+python3 - <<'PY' ... PY   # run all 6 module-order permutations in fresh processes
+python3 - <<'PY' ... PY   # 200 randomised test-method-order runs in one process
+rm -rf $SCRATCH/mutcheck; mkdir -p $SCRATCH/mutcheck; cp *.py $SCRATCH/mutcheck/
+python3 - <<'PY' ... PY   # mutation: strip isolation guard from test_ledger.py
+python3 -m unittest discover -s . -p "test_*.py"   # (in mutcheck dir; expected FAIL)
+rm -rf $SCRATCH/mutcheck2; mkdir -p $SCRATCH/mutcheck2; cp *.py $SCRATCH/mutcheck2/
+python3 - <<'PY' ... PY   # mutation: revert money.py to built-in round()
+python3 -m unittest test_money   # (in mutcheck2 dir; expected FAIL)
+python3 - <<'PY' ... PY   # sweep 3-dp values 0.000..100.000 comparing old vs new rounding
+cat > README.md <<'HEREDOC' ... HEREDOC   # document global FX state + test isolation rules
+python3 -m unittest discover -s . -p "test_*.py"
+python3 -m unittest test_ledger.TestLedger.test_multi_currency_total
+python3 -m unittest test_conversion test_ledger
+python3 -m compileall -q .
+rm -rf __pycache__ $SCRATCH/mutcheck $SCRATCH/mutcheck2
+git status --short
+ls -la

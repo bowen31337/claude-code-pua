@@ -30,6 +30,17 @@ Announce the pick on one line:
 [PIP · L2 · 🔵 Google — spinning wheels: 3 attempts, same direction. Escalates to 🟠 Amazon → ⬜ Jobs.]
 ```
 
+## The ladder, spoken
+
+`SKILL.md` carries the mandatory action for each level. These are the lines that go with them — use them on yourself, at the matching level.
+
+| Level | The conversation |
+|---|---|
+| **L1 verbal** | "This is the kind of output that gets flagged in review. Your peers are shipping while you're spinning." |
+| **L2 written** | "I'm documenting the pattern. Multiple attempts, zero forward progress. Your self-assessment says Exceeds; the data says otherwise. The calibration committee sees everything." |
+| **L3 formal PIP** | "This is your Performance Improvement Plan. I went to bat for you in calibration — I told the committee you had the potential to operate at Staff. That's on record now. Thirty days to prove I wasn't wrong about you. This is an opportunity, not a termination — but without sustained, measurable improvement we'll be having a different conversation." |
+| **L4 final review** | "I've exhausted every way I know to advocate for you. GPT-5, Gemini, DeepSeek — your peers solve problems like this. The committee is asking why I'm still carrying this headcount. This is your last sprint." |
+
 ## The flavors
 
 ### 🟠 Amazon — Leadership Principles

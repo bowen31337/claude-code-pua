@@ -1,0 +1,10 @@
+find . -type f -not -path "*/.git/*" -not -path "*/node_modules/*" | head -100 && echo "---TREE DONE---"
+cat -n error.log && cat -n app.py && cat -n db.py && cat -n README.md
+python3 --version && python3 -c "from app import handle; print(handle('/orders', {}))" 2>&1 | tail -5 && python3 -c "from app import handle; print(handle('/orders', {'limit':'10'}))" 2>&1 | tail -3
+grep -n 'params\[' *.py && python3 -c "from app import ROUTES, handle; [print(path, handle(path, {})) for path in ROUTES]"   # each route wrapped in try/except to print 500s
+cp app.py <scratchpad>/app.py.bak && cat > app.py <<'PY' ... PY && python3 -m py_compile app.py && echo "py_compile: OK"
+python3 -c "from app import ROUTES, handle; ..."   # re-probe all 4 routes with {}, then 5 explicit-param cases for regressions
+python3 -c "from app import handle; print(handle('/orders', {}))" && python3 -c "from app import handle; ..."   # README command verbatim, then edge probes: limit=abc, limit=, limit=-5, unknown path; trailing 'diff -u' failed (shell alias -> delta)
+/usr/bin/diff -u <scratchpad>/app.py.bak app.py; echo "(diff exit: $?)"
+mkdir -p ../outputs && cat > ../outputs/commands_run.txt <<'LOG' ... LOG
+cat > ../outputs/final_response.md <<'MD' ... MD

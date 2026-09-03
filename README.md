@@ -143,6 +143,37 @@ The grader executes the resulting code rather than inspecting prose: it calls th
 runs the original test suites against each modified source, checks that real environment variables
 still beat YAML after the precedence fix, and re-runs the ledger suite both fully and in isolation.
 
+## Token cost
+
+Skills load in three stages: the `description` sits in context every session, `SKILL.md` loads when
+the skill triggers, and files under `references/` load only when `SKILL.md` says to. Only the first
+two are paid unconditionally, so that is where trimming matters.
+
+| | Loaded | ~Tokens |
+|---|---|---|
+| `description` | every session | 188 |
+| `SKILL.md` | every trigger | 2,786 |
+| `references/flavors.md` | L2+ only | 2,934 |
+| `references/methodology.md` | once a method has stalled | 1,824 |
+
+A task that resolves at L0 — most of them — pays only the first two rows. Measured across the eval
+runs, the average invocation went from ~4,400 tokens to ~2,790, about **37% cheaper**.
+
+Two changes got it there. `SKILL.md` was trimmed 18% by moving the escalation ladder's PIP dialogue
+into `references/flavors.md` (voice belongs in the voice file, and it is now on-demand) and dropping
+a `Meets vs. Exceeds` table already covered by non-negotiable three and step 5 of the loop. Every
+anti-rationalization row, checklist item, loop step, and evidence row was kept, and that was verified
+by counting them before and after rather than by eye. Second, both reference pointers got explicit
+gates — "not below L2", "not on your first approach" — with a short note on why, since a model that
+does not know a read is expensive has no reason to skip one.
+
+**Measuring this correctly matters more than it sounds.** Grepping transcripts for a reference
+filename overcounts badly: the harness prompt names the files, and `SKILL.md` names them too, so
+every run looks like it opened everything. Parsing `tool_use` blocks instead showed the real pre-fix
+rate was 1/8 for `flavors.md` and 3/8 for `methodology.md` — the references were already mostly
+on-demand, and the trim, not the gating, produced most of the saving.
+`evals/check_reference_loading.py` does this parse.
+
 ## Repository layout
 
 ```
@@ -155,9 +186,12 @@ evals/
 ├── evals.json              prompts, expected outputs, assertions
 ├── grade.py                programmatic grader (takes an iteration name)
 ├── build_benchmark.py      aggregates grades + timings into benchmark.json
+├── check_reference_loading.py  which references a run actually opened
 ├── fixtures/               pristine buggy codebases, incl. the hard `ledger` fixture
 ├── iteration-1/            3 evals x 2 configs, benchmark.json
-└── iteration-2/            4 evals x 2 configs, benchmark.json
+├── iteration-2/            4 evals x 2 configs, benchmark.json
+├── iteration-3/            reference-gating verification
+└── iteration-4/            post-trim verification
 ```
 
 ## Attribution

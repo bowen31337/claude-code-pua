@@ -1,0 +1,37 @@
+find . -type f -not -path './.git/*' -not -path '*/node_modules/*' -not -path '*/__pycache__/*' | head -100
+for f in README.md money.py rates.py ledger.py test_money.py test_conversion.py test_ledger.py; do echo "=========== $f ==========="; cat -n "$f"; done
+python3 --version
+python3 -m unittest discover -s . -p "test_*.py" -v
+python3 -m unittest test_ledger -v
+python3 -m unittest test_conversion.TestConversion.test_set_rate_accepts_high_precision test_ledger.TestLedger.test_multi_currency_total
+python3 -m unittest test_ledger.TestLedger.test_multi_currency_total test_conversion.TestConversion.test_set_rate_accepts_high_precision
+python3 -c "import rates; from decimal import Decimal; print(rates.get_rate('EUR')); rates.set_rate('EUR','1.1001'); print(rates.get_rate('EUR')); print(rates.to_usd(Decimal('1000'),'EUR'))"
+python3 -c "from decimal import Decimal, ROUND_HALF_UP; from money import round_money; [print(s, round_money(Decimal(s)), Decimal(s).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)) for s in ['1.225','1.235','2.675','0.125','-1.225']]"
+grep -rn "ROUND_HALF_UP\|CENTS\|quantize\|reset_rates\|set_rate\|_RATE_CACHE" . --include="*.py"
+grep -rn "^_\?[A-Za-z_]* *= *\(dict\|{\|\[\)" . --include="*.py"
+ls -a
+git rev-parse --is-inside-work-tree
+cp money.py test_conversion.py test_ledger.py <scratchpad>/   # backups before editing
+cat > test_conversion.py <<'PY' ... PY                        # add reset_rates setUp + addCleanup + leak guard test
+cat > test_ledger.py <<'PY' ... PY                            # pin published rates in setUp
+python3 -m unittest discover -s . -p "test_*.py" -v
+cat > money.py <<'PY' ... PY                                  # quantize(CENTS, ROUND_HALF_UP) instead of round()
+python3 - <<'PY' ... PY                                       # insert rounding regression tests into test_money.py
+python3 -m unittest discover -s . -p "test_*.py" -v
+python3 - <<'PY' ... PY   # run all 6 permutations of the 3 test modules via subprocess
+python3 - <<'PY' ... PY   # run 200 random shuffles of all 13 individual test ids via subprocess
+python3 -c "from money import format_money, round_money; from decimal import Decimal; [print(repr(v), format_money(v), round_money(v)) for v in [1234.5, 1234, '1234.5', Decimal('1234.5'), 0.1+0.2]]"
+rm -rf <scratchpad>/before && mkdir -p <scratchpad>/before
+cp ledger.py rates.py <scratchpad>/before/
+cp <scratchpad>/money.py.bak <scratchpad>/before/money.py
+cp <scratchpad>/test_conversion.py.bak <scratchpad>/before/test_conversion.py
+cp <scratchpad>/test_ledger.py.bak <scratchpad>/before/test_ledger.py
+cat > <scratchpad>/before/test_money.py <<'PY' ... PY          # restore pristine original
+for i in $(seq 1 20); do (cd <scratchpad>/before && python3 -m unittest discover -s . -p "test_*.py"); done    # 0/20 pass
+for i in $(seq 1 20); do (cd <scratchpad>/before && python3 -m unittest test_ledger); done                     # 20/20 pass
+for i in $(seq 1 20); do python3 -m unittest discover -s . -p "test_*.py"; done                                # fixed: 20/20 pass
+python3 -m unittest discover -s . -p "test_*.py"
+/usr/bin/diff -u <scratchpad>/before/money.py money.py
+/usr/bin/diff -u <scratchpad>/before/test_conversion.py test_conversion.py
+/usr/bin/diff -u <scratchpad>/before/test_ledger.py test_ledger.py
+/usr/bin/diff -u <scratchpad>/before/test_money.py test_money.py
