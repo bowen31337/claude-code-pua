@@ -1,0 +1,6 @@
+environment: staging
+database_url: postgres://staging-db.internal:5432/app
+redis_url: redis://staging-cache.internal:6379/0
+log_level: debug
+feature_flags:
+  new_checkout: true

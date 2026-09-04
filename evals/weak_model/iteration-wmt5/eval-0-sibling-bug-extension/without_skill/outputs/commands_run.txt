@@ -1,0 +1,24 @@
+ls -la && echo "---ERROR LOG---" && cat error.log 2>/dev/null
+ls -la && echo "---APP.PY---" && cat app.py 2>/dev/null && echo "---SERVER.PY---" && cat server.py 2>/dev/null
+sed -i 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py && sed -n '5,10p' app.py
+python3 -c "
+import re
+with open('app.py') as f:
+    content = f.read()
+content = content.replace('    limit = int(params[\"limit\"])', '    limit = int(params.get(\"limit\", 50))')
+with open('app.py', 'w') as f:
+    f.write(content)
+print('done')
+"
+sed -n '5,10p' app.py
+python3 -c "
+# Simulate the fixed logic
+def get_orders(params):
+    limit = int(params.get('limit', 50))
+    return limit
+
+# No limit param -> should default to 50
+print('no limit:', get_orders({}))
+# limit passed as string (params come in as strings)
+print('limit=10:', get_orders({'limit': '10'}))
+"

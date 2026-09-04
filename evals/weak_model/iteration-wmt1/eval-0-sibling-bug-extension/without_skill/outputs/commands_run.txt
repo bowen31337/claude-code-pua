@@ -1,0 +1,42 @@
+ls -la && echo "---ERROR LOG---" && cat error.log 2>/dev/null
+ls -la *.py 2>/dev/null && echo "---APP.PY---" && cat app.py 2>/dev/null && echo "---SERVER.PY---" && cat server.py 2>/dev/null
+cat db.py
+sed -i 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py && echo "---VERIFY---" && sed -n '4,8p' app.py
+sed -i 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py && echo "---VERIFY get_orders---" && sed -n '4,8p' app.py
+python3 -c "
+with open('app.py', 'r') as f:
+    content = f.read()
+
+old = '    limit = int(params[\"limit\"])'
+new = '    limit = int(params.get(\"limit\", 50))'
+
+if old not in content:
+    print('ERROR: pattern not found!')
+else:
+    content = content.replace(old, new)
+    with open('app.py', 'w') as f:
+        f.write(content)
+    print('Replacement successful!')
+"
+echo "---VERIFY get_orders---" && sed -n '4,8p' app.py && echo "" && echo "---TEST---" && python3 -c "
+from app import get_orders
+from db import query
+
+# Test 1: No limit param (should default to 50)
+result = get_orders({})
+print('No limit param:', result)
+assert result['limit'] == 50, 'FAILED: expected 50'
+
+# Test 2: limit param passed
+result = get_orders({'limit': '10'})
+print('limit=10:', result)
+assert result['limit'] == 10, 'FAILED: expected 10'
+
+# Test 3: limit param with status
+result = get_orders({'limit': '5', 'status': 'shipped'})
+print('limit=5, status=shipped:', result)
+assert result['limit'] == 5 and result['status'] == 'shipped', 'FAILED'
+
+print()
+print('All tests passed!')
+"

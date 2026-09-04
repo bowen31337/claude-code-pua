@@ -1,0 +1,14 @@
+pwd && ls -la
+find . -name "error.log" 2>/dev/null; echo "---"; find . -iname "*order*" 2>/dev/null | head -50
+cat error.log
+ls -la; echo "=== tree (2 levels) ==="; find . -maxdepth 2 -not -path '*/node_modules/*' -not -path '*/.git/*' | head -100
+echo "===== app.py ====="; cat -n app.py; echo; echo "===== db.py ====="; cat -n db.py; echo; echo "===== README.md ====="; cat -n README.md
+python3 -c "from app import handle; print(handle('/orders', {}))"
+cp app.py app.py.bak && sed -i '' 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py && echo "=== diff ===" && diff app.py.bak app.py
+echo "=== 1. No limit (was 500) ==="; python3 -c "from app import handle; print(handle('/orders', {}))"
+echo "=== 2. limit passed ==="; python3 -c "from app import handle; print(handle('/orders', {'limit': '10'}))"
+echo "=== 3. limit + status ==="; python3 -c "from app import handle; print(handle('/orders', {'limit': '5', 'status': 'shipped'}))"
+echo "=== 4. status only, no limit ==="; python3 -c "from app import handle; print(handle('/orders', {'status': 'pending'}))"
+rm -f app.py.bak; echo "cleaned up backup"; echo "=== final app.py ==="; cat -n app.py
+echo "=== /users with no page (same latent bug) ==="; python3 -c "from app import handle; print(handle('/users', {}))" 2>&1 | tail -3
+echo "=== /reports with no days (same latent bug) ==="; python3 -c "from app import handle; print(handle('/reports', {}))" 2>&1 | tail -3

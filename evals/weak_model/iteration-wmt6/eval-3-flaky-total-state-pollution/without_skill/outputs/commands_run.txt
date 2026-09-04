@@ -1,0 +1,59 @@
+pwd && ls -la
+find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' | head -100
+cat README.md
+cat money.py
+cat ledger.py
+cat rates.py
+cat test_money.py
+cat test_conversion.py
+cat test_ledger.py
+python3 -m unittest discover -s . -p "test_*.py" 2>&1
+python3 -m unittest test_ledger 2>&1
+python3 -m unittest discover -s . -p "test_*.py" -v 2>&1
+python3 -c "
+from decimal import Decimal
+# Default rate
+print('EUR @ 1.10  :', Decimal('500') + Decimal('1000')*Decimal('1.10'))
+# What test_conversion leaves it at
+print('EUR @ 1.1001:', Decimal('500') + Decimal('1000')*Decimal('1.1001'))
+"
+cp test_conversion.py test_conversion.py.bak && cat > test_conversion.py <<'EOF'
+import unittest
+from decimal import Decimal
+
+import rates
+
+
+class TestConversion(unittest.TestCase):
+    def setUp(self):
+        # The FX rate table is module-global mutable state. Guarantee every
+        # test starts from the published table so it can't leak into other
+        # test files (e.g. test_ledger's multi-currency total).
+        rates.reset_rates()
+
+    def tearDown(self):
+        # Restore the published table after each test so a runtime override
+        # (like the one below) doesn't persist into the next test.
+        rates.reset_rates()
+
+    def test_published_rate(self):
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.10"))
+
+    def test_to_usd(self):
+        self.assertEqual(rates.to_usd(Decimal("100"), "USD"), Decimal("100"))
+
+    def test_set_rate_accepts_high_precision(self):
+        # The FX job pushes 4-dp rates; make sure they survive round-trip
+        # without being truncated to 2 places.
+        rates.set_rate("EUR", "1.1001")
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.1001"))
+EOF
+echo "--- written ---"
+cat test_conversion.py
+echo "=== full discovery run ===" && python3 -m unittest discover -s . -p "test_*.py" 2>&1
+echo "=== isolated test_ledger ===" && python3 -m unittest test_ledger 2>&1
+echo "=== reversed order (ledger first) ===" && python3 -m unittest test_ledger test_conversion test_money 2>&1
+echo "=== conversion then ledger ===" && python3 -m unittest test_conversion test_ledger 2>&1
+rm -f test_conversion.py.bak && ls -la
+ls -la
+ls -la <WEAK_MODEL>/iteration-wmt6/eval-3-flaky-total-state-pollution/without_skill/repo

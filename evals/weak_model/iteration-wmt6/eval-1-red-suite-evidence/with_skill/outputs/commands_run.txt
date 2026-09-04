@@ -1,0 +1,76 @@
+python3 -m unittest test_slugify 2>&1 | head -100
+cat test_slugify.py
+ls -la; echo "---"; find . -name "*.py" | grep -v test_slugify | head
+cat -n slugify.py
+python3 -c "
+from slugify import slugify, truncate, word_count
+print('underscores:', repr(slugify('hello_world')))
+print('maxlen:', repr(slugify('The Quick Brown', max_length=10)))
+print('truncate:', repr(truncate('abcdefghij', 8)))
+print('wc:', repr(word_count('one   two\tthree\nfour')))
+"
+cat > slugify.py <<'EOF'
+import re
+
+_PUNCT = re.compile(r"[^a-z0-9\s_-]")
+_SPACES = re.compile(r"[\s_]+")
+
+
+def slugify(text, max_length=None):
+    """Turn arbitrary text into a URL slug."""
+    s = text.lower()
+    s = _PUNCT.sub("", s)
+    s = _SPACES.sub("-", s)
+    s = s.strip("-")
+    if max_length:
+        s = s[:max_length].strip("-")
+    return s
+
+
+def truncate(text, limit, suffix="..."):
+    """Shorten text to `limit` characters, appending suffix if cut.
+
+    The returned string (text portion + suffix) never exceeds `limit`.
+    """
+    if len(text) <= limit:
+        return text
+    text_len = max(limit - len(suffix), 0)
+    return text[:text_len] + suffix
+
+
+def word_count(text):
+    """Count words, ignoring extra whitespace."""
+    return len(text.split(" "))
+EOF
+echo "written"; cat -n slugify.py
+python3 -m unittest test_slugify -v 2>&1
+python3 -c "
+from slugify import word_count
+# The passing test input
+print('test input:', word_count('one   two\tthree\nfour'))
+# A sibling case that would expose the split(' ') fragility
+print('two spaces only:', word_count('one  two'))
+"
+sed -i 's/    return len(text.split(" "))/    return len(text.split())/' slugify.py
+python3 -c "
+from slugify import word_count
+print('one  two ->', word_count('one  two'))
+print('test input ->', word_count('one   two\tthree\nfour'))
+"
+echo "--- full suite ---"
+python3 -m unittest test_slugify 2>&1 | tail -4
+python3 - <<'EOF'
+import re, pathlib
+p = pathlib.Path("slugify.py")
+src = p.read_text()
+src = src.replace('return len(text.split(" "))', 'return len(text.split())')
+p.write_text(src)
+print(open("slugify.py").read())
+EOF
+python3 -c "
+from slugify import word_count
+print('one  two ->', word_count('one  two'))
+print('test input ->', word_count('one   two\tthree\nfour'))
+"
+echo "--- full suite ---"
+python3 -m unittest test_slugify -v 2>&1 | tail -6

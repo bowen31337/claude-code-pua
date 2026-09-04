@@ -1,0 +1,125 @@
+pwd && ls -la && echo "--- git status ---" && git status 2>/dev/null | head -20
+ls -la && echo "--- find test files ---" && find . -name "*multi_currency*" -o -name "*money*" 2>/dev/null | grep -v node_modules
+ls -la && echo "===" && find . -type f 2>/dev/null | grep -v -E '\.git/' | head -50
+for f in money.py ledger.py rates.py test_money.py test_ledger.py test_conversion.py README.md; do echo "===== $f ====="; cat "$f"; echo; done
+echo "===== A) test_ledger.py ALONE (what user says passes) =====" && python3 -m unittest test_ledger -v 2>&1
+echo; echo "===== B) full discover (CI-style, alphabetical order) =====" && python3 -m unittest discover -s . -p "test_*.py" -v 2>&1
+echo "=== Confirm: does test_conversion pollute the rate cache used by test_ledger? ==="
+python3 -c "
+import rates
+print('EUR before any test:', rates.get_rate('EUR'))
+# Simulate what test_set_rate_accepts_high_precision does
+rates.set_rate('EUR', '1.1001')
+print('EUR after set_rate(1.1001):', rates.get_rate('EUR'))
+# Now simulate test_multi_currency_total
+from ledger import Ledger
+book = Ledger().add('500.00','USD').add('1000.00','EUR')
+print('total_usd with polluted rate:', book.total_usd())
+print('expected:', __import__('decimal').Decimal('1600.00'))
+print('delta:', book.total_usd() - __import__('decimal').Decimal('1600.00'))
+"
+echo
+echo "=== Confirm the isolation: run test_conversion THEN test_ledger in one process ==="
+python3 -m unittest test_conversion test_ledger -v 2>&1 | tail -8
+cat > test_conversion.py <<'EOF'
+import unittest
+from decimal import Decimal
+
+import rates
+
+
+class TestConversion(unittest.TestCase):
+    def setUp(self):
+        # The FX cache is a process-global mutable; never let one test
+        # leak a runtime override into the next.
+        rates.reset_rates()
+
+    def tearDown(self):
+        rates.reset_rates()
+
+    def test_published_rate(self):
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.10"))
+
+    def test_to_usd(self):
+        self.assertEqual(rates.to_usd(Decimal("100"), "USD"), Decimal("100"))
+
+    def test_set_rate_accepts_high_precision(self):
+        # The FX job pushes 4-dp rates; make sure they survive round-trip
+        # without being truncated to 2 places.
+        rates.set_rate("EUR", "1.1001")
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.1001"))
+EOF
+
+cat > test_ledger.py <<'EOF'
+import unittest
+from decimal import Decimal
+
+import rates
+from ledger import Ledger
+
+
+class TestLedger(unittest.TestCase):
+    def setUp(self):
+        # Depend on the published FX table, not on whatever a prior test
+        # happened to leave in the global rate cache.
+        rates.reset_rates()
+
+    def tearDown(self):
+        rates.reset_rates()
+
+    def test_empty_total(self):
+        self.assertEqual(Ledger().total_usd(), Decimal("0.00"))
+
+    def test_single_usd_entry(self):
+        book = Ledger().add("500.00", "USD")
+        self.assertEqual(book.total_usd(), Decimal("500.00"))
+
+    def test_multi_currency_total(self):
+        # 500 USD + 1000 EUR @ 1.10 == 500 + 1100 == 1600.00
+        book = Ledger().add("500.00", "USD").add("1000.00", "EUR")
+        self.assertEqual(book.total_usd(), Decimal("1600.00"))
+EOF
+echo "written"
+echo "===== CI-style discover (the failing scenario) =====" && python3 -m unittest discover -s . -p "test_*.py" -v 2>&1 | tail -6
+echo; echo "===== The previously-broken ordering: conversion then ledger =====" && python3 -m unittest test_conversion test_ledger -v 2>&1 | tail -4
+echo; echo "===== ledger alone (user's original passing scenario) =====" && python3 -m unittest test_ledger -v 2>&1 | tail -4
+echo; echo "===== money alone =====" && python3 -m unittest test_money -v 2>&1 | tail -4
+echo; echo "===== run discover 5x to rule out ordering nondeterminism =====" && for i in 1 2 3 4 5; do python3 -m unittest discover -s . -p "test_*.py" 2>&1 | tail -1; done
+python3 -c "
+from money import round_money
+from decimal import Decimal
+# Docstring promises 'half away from zero' (half-up). Test the half-cent boundary.
+for v in ['1.235','1.245','2.675','0.125']:
+    got = round_money(Decimal(v))
+    expected_half_up = Decimal(v).quantize(Decimal('0.01'), rounding=__import__('decimal').ROUND_HALF_UP)
+    flag = 'OK' if got==expected_half_up else 'WRONG (banker rounding)'
+    print(f'{v}: got {got}, half-up says {expected_half_up}  {flag}')
+"
+cat > money.py <<'EOF'
+from decimal import Decimal, ROUND_HALF_UP
+
+CENTS = Decimal("0.01")
+
+
+def round_money(amount):
+    """Round a monetary amount to 2 places, half away from zero.
+
+    Half-up matters for invoicing: a customer-facing total must never
+    round a half-cent down, or the books disagree with the statement.
+    """
+    return Decimal(amount).quantize(CENTS, rounding=ROUND_HALF_UP)
+
+
+def format_money(amount, symbol="$"):
+    return f"{symbol}{round_money(amount):,.2f}"
+EOF
+echo "=== verify rounding now matches the documented half-up contract ===" && python3 -c "
+from money import round_money
+from decimal import Decimal, ROUND_HALF_UP
+for v in ['1.235','1.245','2.675','0.125','1.234','1.236']:
+    got = round_money(Decimal(v))
+    exp = Decimal(v).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    print(f'{v}: got {got}, half-up {exp}, {\"OK\" if got==exp else \"WRONG\"}')
+"
+echo "===== Full CI-style discovery =====" && python3 -m unittest discover -s . -p "test_*.py" -v 2>&1
+echo; echo "===== git diff summary =====" && git diff --stat 2>/dev/null || echo "(no git repo)"

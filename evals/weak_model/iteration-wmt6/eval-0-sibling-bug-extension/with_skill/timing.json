@@ -1,0 +1,8 @@
+{
+  "total_tokens": 48935,
+  "duration_ms": 26481,
+  "total_duration_seconds": 26.5,
+  "tool_uses": 15,
+  "turns": 11,
+  "hit_max_turns": false
+}

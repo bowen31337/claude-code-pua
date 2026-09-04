@@ -82,24 +82,41 @@ unusable because the machine slept mid-run; token and tool-call counts are unaff
 ## Weaker-model testing
 
 `weak_model/` re-runs the same four fixtures against a 35B MoE model (~3B active params/token)
-served locally via llama-server, using a custom bash-fence ReAct harness
-(`weak_model/harness.py`) since llama-server has no Claude-Code-style native tool use.
+served locally via llama-server, under **two structurally different harnesses**, six six-iteration
+sweeps each (96 runs total).
 
-Six full sweeps (`iteration-wm1` through `iteration-wm6`, 48 runs total). Aggregate: 142/156
-(91.0%) with-skill vs 137/156 (87.8%) baseline (+3.2pp) — but that hides a real split. All 3
-max-turns breakdowns across all 48 runs happened exclusively on with-skill runs (the model
-reverting to its own native XML tool-call format instead of the harness's fenced-block protocol).
-Excluding those 2 iterations: 101/104 (97.1%) vs 90/104 (86.5%), +10.6pp, with all 4 clean
-iterations individually favoring the skill. Cost: 2.40x tokens, 1.03x tool calls — the skill
-drives longer prose, not more actions, on this model.
+**Harness 1 — `harness.py`, fenced-block protocol** (`iteration-wm1`..`iteration-wm6`): the model
+replies with a ```` ```bash ```` or ```` ```final ```` block, since llama-server has no
+Claude-Code-style native tool use and this is the plainest possible fallback protocol. Aggregate:
+142/156 (91.0%) with-skill vs 137/156 (87.8%) baseline (+3.2pp) — but that hides a real split. All
+3 max-turns breakdowns across all 48 runs happened exclusively on with-skill runs (the model
+reverting to its own native XML tool-call format instead of the requested fenced-block protocol).
+Excluding those 2 iterations: 101/104 (97.1%) vs 90/104 (86.5%), +10.6pp.
+
+**Harness 2 — `harness_tools.py`, native tool-calling** (`iteration-wmt1`..`iteration-wmt6`): uses
+llama-server's actual OpenAI-compatible `tools` parameter, removing the protocol-conflict
+hypothesis from harness 1. It didn't remove the instability — 2 breakdowns still occurred, still
+exclusively on with-skill runs, with a *different* symptom (an empty final message after real tool
+output, read by the protocol as "done" and silently abandoning the task). Raw aggregate: 145/156
+(92.9%) with-skill vs 145/156 (92.9%) baseline — an exact tie. Excluding the 2 breakdowns: 102/104
+(98.1%) vs 95/104 (91.3%), +6.7pp.
+
+**The combined finding**: 5 of 5 breakdowns across both harnesses (96 total runs) occurred on
+with-skill runs, never baseline — under two different protocols with two different specific
+symptoms, ruling out "it's just the fenced-block protocol" as the full explanation. In both
+harnesses, excluding breakdowns shows a real, positive, repeatable quality edge for the skill;
+in both, that edge is largely or fully cancelled in the raw aggregate by the skill's higher
+breakdown rate; in both, cost is unambiguously higher (2.40–2.69x tokens, 1.03–1.18x tool calls —
+the extra cost is verbosity, not more actions taken).
 
 ```bash
-python3 grade_wm.py iteration-wm1   # regrade any iteration against committed transcripts
-python3 grade_wm.py iteration-wm6
+python3 grade_wm.py iteration-wm1     # fenced-block harness, any iteration wm1-wm6
+python3 grade_wm.py iteration-wmt1    # native tool-calling harness, any iteration wmt1-wmt6
 ```
 
-Full reading, including how the breakdown instances were verified (not assumed) and what would
-need to change to test more cleanly: `weak_model/notes.txt` (single-run findings, incl. two
-harness bugs caught and fixed) and `weak_model/notes_repeated.txt` (the 6-iteration aggregate).
-Treat the clean-run edge as a real, repeatable lead — not yet a confirmed effect independent of
-this specific harness's protocol-compatibility issue.
+Full reading, including exactly how every breakdown instance was verified rather than assumed:
+`weak_model/notes.txt` (single-run findings, incl. two harness bugs caught and fixed),
+`weak_model/notes_repeated.txt` (fenced-block 6-iteration aggregate), and
+`weak_model/notes_tools.txt` (native tool-calling 6-iteration aggregate and the cross-harness
+comparison). Treat the clean-run edge as real and repeatable, and the breakdown-rate asymmetry as
+the more surprising and better-supported finding of the two.

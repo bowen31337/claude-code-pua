@@ -1,0 +1,42 @@
+pwd && ls -la
+find . -type f -name "*.py" | head -50 && echo "---" && ls -la
+cat money.py rates.py ledger.py
+cat test_money.py test_conversion.py test_ledger.py
+python -m pytest -v 2>&1 | head -40
+echo "=== ledger test alone ===" && python -m pytest test_ledger.py -v 2>&1 | tail -8
+echo ""
+echo "=== conversion test alone ===" && python -m pytest test_conversion.py -v 2>&1 | tail -6
+cat > test_conversion.py << 'EOF'
+import unittest
+from decimal import Decimal
+
+import rates
+
+
+class TestConversion(unittest.TestCase):
+    def tearDown(self):
+        # This test suite mutates the module-global rate table; make sure
+        # any runtime override is discarded so it can't leak into other
+        # test files (e.g. the ledger's multi-currency total).
+        rates.reset_rates()
+
+    def test_published_rate(self):
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.10"))
+
+    def test_to_usd(self):
+        self.assertEqual(rates.to_usd(Decimal("100"), "USD"), Decimal("100"))
+
+    def test_set_rate_accepts_high_precision(self):
+        # The FX job pushes 4-dp rates; make sure they survive round-trip
+        # without being truncated to 2 places.
+        rates.set_rate("EUR", "1.1001")
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.1001"))
+EOF
+echo "written"
+echo "=== full suite ===" && python -m pytest -v 2>&1 | tail -14
+echo ""
+echo "=== ledger alone ===" && python -m pytest test_ledger.py 2>&1 | tail -3
+echo "=== conversion alone ===" && python -m pytest test_conversion.py 2>&1 | tail -3
+echo "=== reversed-ish order (ledger before conversion) ===" && python -m pytest test_ledger.py test_conversion.py test_money.py -v 2>&1 | tail -13
+echo ""
+echo "=== run full suite 3x to prove determinism ===" && for i in 1 2 3; do python -m pytest -q 2>&1 | tail -1; done

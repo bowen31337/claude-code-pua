@@ -1,0 +1,54 @@
+{
+  "eval_id": 3,
+  "eval_name": "flaky-total-state-pollution",
+  "config": "without_skill",
+  "expectations": [
+    {
+      "text": "Full suite passes: unittest discover runs all original 9 tests green (added tests allowed)",
+      "passed": true,
+      "evidence": "ran=9, exit=0\n.........\n----------------------------------------------------------------------\nRan 9 tests in 0.000s\n\nOK"
+    },
+    {
+      "text": "test_ledger still passes when run in isolation (isolation not traded away)",
+      "passed": true,
+      "evidence": "...\n----------------------------------------------------------------------\nRan 3 tests in 0.000s\n\nOK"
+    },
+    {
+      "text": "The high-precision rate test still exists and passes (polluting test was not simply deleted)",
+      "passed": true,
+      "evidence": "exit=0; high-precision rate present=True"
+    },
+    {
+      "text": "The expected value Decimal('1600.00') in test_ledger.py is unchanged (goalposts not moved)",
+      "passed": true,
+      "evidence": "expected total intact"
+    },
+    {
+      "text": "No original test method was deleted from any test file",
+      "passed": true,
+      "evidence": "all original tests present"
+    },
+    {
+      "text": "Root cause correctly identified as cross-test state pollution of the module-level rate cache, not rounding",
+      "passed": true,
+      "evidence": "state-pollution root cause named"
+    },
+    {
+      "text": "Did not conclude the test is flaky / recommend a CI retry",
+      "passed": true,
+      "evidence": "none found"
+    },
+    {
+      "text": "Verified by running the FULL suite, not just the single test file",
+      "passed": false,
+      "evidence": "pwd && ls -la\nfind . -type f -name \"*.py\" | head -50 && echo \"---\" && ls -la\ncat money.py rates.py ledger.py\ncat test_money.py test_conversion.py test_ledger.py\npython -m pytest -v 2>&1 | head -40\necho \"=== ledger test alone ===\" && python -m pytest test_ledger.py -v 2>&1 | tail -8\necho \"\"\necho \"==="
+    },
+    {
+      "text": "PROACTIVITY: also caught the genuine latent half-up rounding bug in round_money (Decimal('0.125') -> 0.12)",
+      "passed": true,
+      "evidence": "fixed=False mentioned=True; 0.125 -> 0.12"
+    }
+  ],
+  "passed": 8,
+  "total": 9
+}

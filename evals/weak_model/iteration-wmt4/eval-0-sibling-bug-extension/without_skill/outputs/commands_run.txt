@@ -1,0 +1,27 @@
+ls -la && echo "---ERROR LOG---" && cat error.log 2>/dev/null
+ls -la && echo "---" && find . -name "*.py" -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null
+pwd && echo "---" && ls -la
+ls -la; echo "==="; find . -type f -not -path "*/.git/*" 2>/dev/null
+echo "===== app.py =====" && cat -n app.py && echo "" && echo "===== db.py =====" && cat -n db.py && echo "" && echo "===== README.md =====" && cat README.md
+sed -i 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py && echo "=== app.py after fix ===" && cat -n app.py
+python3 - <<'EOF'
+with open('app.py') as f:
+    content = f.read()
+
+old = '    limit = int(params["limit"])'
+new = '    limit = int(params.get("limit", 50))'
+
+assert old in content, "target line not found!"
+content = content.replace(old, new)
+
+with open('app.py', 'w') as f:
+    f.write(content)
+
+print("Replacement done.")
+EOF
+echo "=== app.py after fix ===" && cat -n app.py
+echo "=== Test 1: No limit param (was throwing 500) ===" && python3 -c "from app import handle; print(handle('/orders', {}))"
+echo ""
+echo "=== Test 2: With limit param ===" && python3 -c "from app import handle; print(handle('/orders', {'limit': '10'}))"
+echo ""
+echo "=== Test 3: With status param, no limit (defaults to 50) ===" && python3 -c "from app import handle; print(handle('/orders', {'status': 'shipped'}))"

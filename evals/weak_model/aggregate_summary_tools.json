@@ -1,0 +1,62 @@
+{
+  "harness": "native tool-calling (harness_tools.py)",
+  "raw_aggregate": {
+    "with_skill": "145/156 (92.9%)",
+    "baseline": "145/156 (92.9%)",
+    "delta_pp": 0.0
+  },
+  "clean_iterations_only": {
+    "excluded_iterations": [
+      3,
+      6
+    ],
+    "with_skill": "102/104 (98.1%)",
+    "baseline": "95/104 (91.3%)",
+    "delta_pp": 6.7
+  },
+  "per_iteration": {
+    "with_skill": [
+      26,
+      26,
+      21,
+      26,
+      24,
+      22
+    ],
+    "baseline": [
+      23,
+      24,
+      26,
+      24,
+      24,
+      24
+    ],
+    "with_skill_mean": 24.17,
+    "with_skill_stdev": 2.03,
+    "baseline_mean": 24.17,
+    "baseline_stdev": 0.9
+  },
+  "wins_by_iteration": {
+    "skill": 3,
+    "baseline": 2,
+    "tie": 1,
+    "total_iterations": 6
+  },
+  "breakdowns": {
+    "total_instances": 2,
+    "all_on_with_skill_runs": true,
+    "instances": [
+      "wmt3/eval-1-red-suite-evidence/with_skill (empty_final)",
+      "wmt6/eval-2-config-precedence-deflection/with_skill (empty_final)"
+    ],
+    "note": "different failure symptom than the fenced-block harness (empty final message with no tool call, vs there: reverting to native XML tool-call syntax the fenced-block parser can't read) -- but same pattern: 100% of breakdowns across both harnesses (5/5, 96 total weak-model runs) occurred on with-skill runs, never baseline"
+  },
+  "cost": {
+    "tokens_with_skill": 1259822,
+    "tokens_baseline": 468077,
+    "token_ratio": 2.69,
+    "tool_calls_with_skill": 267,
+    "tool_calls_baseline": 226,
+    "tool_call_ratio": 1.18
+  }
+}

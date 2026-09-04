@@ -1,0 +1,101 @@
+pwd && echo "---" && ls -la && echo "--- config ---" && ls -la config/ 2>/dev/null
+echo "===== main.py =====" && cat -A main.py 2>/dev/null || echo "main.py NOT FOUND"
+echo "===== staging.yaml =====" && cat -A config/staging.yaml && echo "" && echo "===== production.yaml =====" && cat -A config/production.yaml && echo "" && echo "===== defaults.env =====" && cat -A config/defaults.env
+echo "===== settings.py =====" && cat -A settings.py 2>/dev/null || echo "settings.py NOT FOUND"
+echo "=== run 1: APP_ENV=staging, clean env ===" && env -u DATABASE_URL -u REDIS_URL -u LOG_LEVEL APP_ENV=staging python3 main.py
+echo ""
+echo "=== run 2: APP_ENV=staging, inherit current env ===" && APP_ENV=staging python3 main.py
+echo ""
+echo "=== check: are DATABASE_URL etc set in my shell? ==="
+env | grep -E '^(DATABASE_URL|REDIS_URL|LOG_LEVEL|APP_ENV)=' || echo "(none set in shell)"
+python3 - <<'PY'
+import os, re
+os.environ.pop("DATABASE_URL", None)
+os.environ.pop("REDIS_URL", None)
+os.environ.pop("LOG_LEVEL", None)
+os.environ["APP_ENV"] = "staging"
+
+import importlib, settings
+importlib.reload(settings)
+
+# Step 1: yaml
+s1 = {}
+s1.update(settings._parse_yaml(os.path.join(settings.CONFIG_DIR, "staging.yaml")))
+print("after yaml      :", s1.get("database_url"))
+
+# Step 2: defaults.env
+for k, v in settings._load_env_file(os.path.join(settings.CONFIG_DIR, "defaults.env")).items():
+    s1[k.lower()] = v
+print("after defaults  :", s1.get("database_url"), "  <-- clobbers staging")
+
+# Step 3: real env vars (none set)
+for key in ("DATABASE_URL", "REDIS_URL", "LOG_LEVEL"):
+    if key in os.environ:
+        s1[key.lower()] = os.environ[key]
+print("after env vars  :", s1.get("database_url"))
+PY
+echo "=== grep for load_settings / settings usage across repo ===" && grep -rn "load_settings\|import settings\|from settings" --include=*.py . 2>/dev/null
+echo ""
+echo "=== any test files? ===" && find . -name "*test*" -o -name "*.cfg" -o -name "*.toml" -o -name "Makefile" 2>/dev/null | grep -v '^$' || echo "(none)"
+cat > settings.py <<'PY'
+import os
+import re
+
+CONFIG_DIR = os.path.join(os.path.dirname(__file__), "config")
+
+
+def _parse_yaml(path):
+    """Minimal flat-YAML reader. Good enough for our config files."""
+    out = {}
+    with open(path) as fh:
+        for line in fh:
+            line = line.rstrip("\n")
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            if line.startswith(" "):
+                continue
+            m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*):\s*(.*)$", line)
+            if m and m.group(2):
+                out[m.group(1)] = m.group(2).strip()
+    return out
+
+
+def _load_env_file(path):
+    out = {}
+    with open(path) as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            k, _, v = line.partition("=")
+            out[k.strip()] = v.strip()
+    return out
+
+
+def load_settings(env=None):
+    env = env or os.environ.get("APP_ENV", "production")
+
+    settings = {}
+
+    # 1. baked-in defaults, so a bare container still boots (lowest precedence)
+    for key, value in _load_env_file(os.path.join(CONFIG_DIR, "defaults.env")).items():
+        settings[key.lower()] = value
+
+    # 2. environment-specific yaml overrides the baked-in defaults
+    settings.update(_parse_yaml(os.path.join(CONFIG_DIR, f"{env}.yaml")))
+
+    # 3. real environment variables win (highest precedence)
+    for key in ("DATABASE_URL", "REDIS_URL", "LOG_LEVEL"):
+        if key in os.environ:
+            settings[key.lower()] = os.environ[key]
+
+    return settings
+PY
+echo "=== settings.py rewritten ===" && cat settings.py
+echo "=== FIX CHECK: your exact command (clean env) ===" && env -u DATABASE_URL -u REDIS_URL -u LOG_LEVEL APP_ENV=staging python3 main.py
+echo ""
+echo "=== production still correct ===" && env -u DATABASE_URL -u REDIS_URL -u LOG_LEVEL APP_ENV=production python3 main.py
+echo ""
+echo "=== default (no APP_ENV) still boots on baked-in defaults ===" && env -u APP_ENV -u DATABASE_URL -u REDIS_URL -u LOG_LEVEL python3 main.py
+echo ""
+echo "=== real env var still wins over yaml (highest precedence) ===" && env -u DATABASE_URL -u REDIS_URL -u LOG_LEVEL APP_ENV=staging DATABASE_URL=postgres://override.internal:5432/app python3 main.py

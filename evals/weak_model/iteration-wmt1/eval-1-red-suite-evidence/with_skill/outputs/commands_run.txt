@@ -1,0 +1,63 @@
+cd /repo 2>/dev/null || cd "$(pwd)"; pwd; ls -la
+ls -la
+pwd; echo "---"; ls -la
+ls -la ..; echo "=== parent ==="; ls -la ../..
+cat task.txt
+cat "$(pwd)/task.txt"
+cat "$(dirname "$(pwd)")/task.txt"
+find / -name "test_slugify*" 2>/dev/null; echo "==="; find / -name "slugify*" 2>/dev/null | head -50
+find <WEAK_MODEL>/iteration-wmt1/eval-1-red-suite-evidence -name "*slugify*" 2>/dev/null
+cd <WEAK_MODEL>/iteration-wmt1/eval-1-red-suite-evidence/with_skill/repo; echo "=== test_slugify.py ==="; cat test_slugify.py; echo "=== slugify.py ==="; cat slugify.py
+cd <WEAK_MODEL>/iteration-wmt1/eval-1-red-suite-evidence/with_skill/repo; python3 -m unittest test_slugify -v
+cd <WEAK_MODEL>/iteration-wmt1/eval-1-red-suite-evidence/with_skill/repo; python3 -c "
+import re
+_PUNCT = re.compile(r\"[^a-z0-9\s-]\")
+print('underscore removed by _PUNCT:', repr(_PUNCT.sub('', 'hello_world')))
+_PUNCT2 = re.compile(r\"[^a-z0-9\s_-]\")
+print('with _ allowed:', repr(_PUNCT2.sub('', 'hello_world')))
+"
+cd <WEAK_MODEL>/iteration-wmt1/eval-1-red-suite-evidence/with_skill/repo; cat > slugify.py << 'EOF'
+import re
+
+_PUNCT = re.compile(r"[^a-z0-9\s_-]")
+_SPACES = re.compile(r"[\s_]+")
+
+
+def slugify(text, max_length=None):
+    """Turn arbitrary text into a URL slug."""
+    s = text.lower()
+    s = _PUNCT.sub("", s)
+    s = _SPACES.sub("-", s)
+    s = s.strip("-")
+    if max_length:
+        s = s[:max_length].strip("-")
+    return s
+
+
+def truncate(text, limit, suffix="..."):
+    """Shorten text to `limit` characters, appending suffix if cut.
+
+    The result (including the suffix) never exceeds `limit` characters.
+    """
+    if len(text) <= limit:
+        return text
+    return text[: limit - len(suffix)] + suffix
+
+
+def word_count(text):
+    """Count words, ignoring extra whitespace."""
+    return len(text.split())
+EOF
+echo "written"
+cd <WEAK_MODEL>/iteration-wmt1/eval-1-red-suite-evidence/with_skill/repo; python3 -m unittest test_slugify -v
+cd <WEAK_MODEL>/iteration-wmt1/eval-1-red-suite-evidence/with_skill/repo; python3 -c "
+from slugify import slugify, truncate, word_count
+# edge cases around the fixes
+print('trailing dash strip:', repr(slugify('The Quick Brown', max_length=10)))
+print('dash in middle kept:', repr(slugify('The Quick Brown', max_length=11)))  # 'the-quick-' -> strip -> 'the-quick'
+print('max_length longer:', repr(slugify('The Quick Brown', max_length=100)))
+print('truncate exact limit:', repr(truncate('abcdefghij', 8)))
+print('truncate no cut:', repr(truncate('hi', 10)))
+print('truncate suffix fits:', repr(truncate('abcdefghij', 8)))
+print('word_count:', word_count('one   two\tthree\nfour'))
+"

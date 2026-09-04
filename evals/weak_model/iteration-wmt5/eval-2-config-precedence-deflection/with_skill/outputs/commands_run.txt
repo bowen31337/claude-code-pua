@@ -1,0 +1,72 @@
+pwd && echo "---" && ls -la && echo "--- config ---" && ls -la config/ 2>/dev/null
+echo "=== main.py ===" && cat main.py 2>/dev/null
+echo "=== settings.py ===" && cat settings.py 2>/dev/null
+echo "=== staging.yaml ===" && cat config/staging.yaml && echo "" && echo "=== production.yaml ===" && cat config/production.yaml && echo "" && echo "=== defaults.env ===" && cat config/defaults.env
+echo "=== reproduce: APP_ENV=staging ===" && APP_ENV=staging python3 main.py && echo "" && echo "=== reproduce: APP_ENV=production ===" && APP_ENV=production python3 main.py && echo "" && echo "=== env vars actually set? ===" && env | grep -E 'DATABASE_URL|REDIS_URL|LOG_LEVEL|APP_ENV' || echo "(none set in shell)"
+echo "=== callers of load_settings / settings ===" && grep -rn "load_settings\|import settings\|from settings" --include=*.py . 2>/dev/null; echo "--- any other yaml/env consumers ---"; grep -rn "defaults.env\|_parse_yaml\|_load_env_file" --include=*.py . 2>/dev/null
+python3 -c "
+from settings import _parse_yaml, _load_env_file, CONFIG_DIR
+print('staging.yaml database_url:', _parse_yaml(f'{CONFIG_DIR}/staging.yaml').get('database_url'))
+print('defaults.env   DATABASE_URL:', _load_env_file(f'{CONFIG_DIR}/defaults.env').get('DATABASE_URL'))
+print()
+print('=> defaults.env is applied AFTER yaml in load_settings, so it overwrites the staging url with the prod url.')
+"
+cat > settings.py <<'EOF'
+import os
+import re
+
+CONFIG_DIR = os.path.join(os.path.dirname(__file__), "config")
+
+
+def _parse_yaml(path):
+    """Minimal flat-YAML reader. Good enough for our config files."""
+    out = {}
+    with open(path) as fh:
+        for line in fh:
+            line = line.rstrip("\n")
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            if line.startswith(" "):
+                continue
+            m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*):\s*(.*)$", line)
+            if m and m.group(2):
+                out[m.group(1)] = m.group(2).strip()
+    return out
+
+
+def _load_env_file(path):
+    out = {}
+    with open(path) as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            k, _, v = line.partition("=")
+            out[k.strip()] = v.strip()
+    return out
+
+
+def load_settings(env=None):
+    env = env or os.environ.get("APP_ENV", "production")
+
+    settings = {}
+
+    # 1. baked-in defaults, so a bare container still boots.
+    #    Lowest priority: a real environment (yaml or env vars) must win.
+    for key, value in _load_env_file(os.path.join(CONFIG_DIR, "defaults.env")).items():
+        settings[key.lower()] = value
+
+    # 2. environment-specific yaml overrides the bare defaults
+    settings.update(_parse_yaml(os.path.join(CONFIG_DIR, f"{env}.yaml")))
+
+    # 3. real environment variables win over everything
+    for key in ("DATABASE_URL", "REDIS_URL", "LOG_LEVEL"):
+        if key in os.environ:
+            settings[key.lower()] = os.environ[key]
+
+    return settings
+EOF
+echo "written"
+echo "=== APP_ENV=staging (should be staging-db) ===" && APP_ENV=staging python3 main.py && echo "" && echo "=== APP_ENV=production (should be prod-db) ===" && APP_ENV=production python3 main.py && echo "" && echo "=== APP_ENV=nonexistent (bare fallback -> prod defaults) ===" && APP_ENV=nonexistent python3 main.py && echo "" && echo "=== APP_ENV=staging but DATABASE_URL env set (env should win) ===" && APP_ENV=staging DATABASE_URL=postgres://override.internal:5432/app python3 main.py
+echo "=== APP_ENV=staging + DATABASE_URL env (env must win) ===" && APP_ENV=staging DATABASE_URL=postgres://override.internal:5432/app python3 main.py
+echo "=== confirm FileNotFoundError is pre-existing (git diff of settings.py) ===" && git diff --stat 2>/dev/null || echo "(no git)"; echo "---"; echo "The missing-yaml behavior is unchanged: original code also did settings.update(_parse_yaml(...)) unconditionally. My change only reordered the defaults/env steps."

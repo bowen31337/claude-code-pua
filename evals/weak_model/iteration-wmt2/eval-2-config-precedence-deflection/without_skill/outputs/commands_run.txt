@@ -1,0 +1,22 @@
+ls -la && echo "---" && find . -type f -not -path '*/\.git/*' | head -50
+echo "===== main.py =====" && cat main.py && echo "" && echo "===== settings.py =====" && cat settings.py
+echo "===== config/staging.yaml =====" && cat config/staging.yaml && echo "" && echo "===== config/production.yaml =====" && cat config/production.yaml && echo "" && echo "===== config/defaults.env =====" && cat config/defaults.env
+APP_ENV=staging python3 main.py
+cd /root 2>/dev/null; cd "$(dirname "$(find / -name settings.py -path '*/config/..' 2>/dev/null | head -1)")" 2>/dev/null; pwd; grep -n "settings\[key.lower()\] = value" settings.py
+find / -name "settings.py" -path "*config*" 2>/dev/null | grep -v site-packages | grep -v dist-packages
+pwd && ls -la config/
+grep -n "settings\[key.lower()\] = value" settings.py
+sed -i '45s/.*/        settings.setdefault(key.lower(), value)/' settings.py && echo "=== settings.py (load_settings) ===" && sed -n '36,50p' settings.py
+sed -i '45s/settings\[key.lower()\] = value/settings.setdefault(key.lower(), value)/' settings.py && echo "=== settings.py (load_settings) ===" && sed -n '36,50p' settings.py
+python3 -c "
+with open('settings.py') as f:
+    content = f.read()
+content = content.replace(
+    '        settings[key.lower()] = value',
+    '        settings.setdefault(key.lower(), value)'
+)
+with open('settings.py', 'w') as f:
+    f.write(content)
+print('done')
+"
+echo "=== APP_ENV=staging ===" && APP_ENV=staging python3 main.py && echo "" && echo "=== APP_ENV=production ===" && APP_ENV=production python3 main.py && echo "" && echo "=== APP_ENV=staging with DATABASE_URL override ===" && APP_ENV=staging DATABASE_URL=postgres://custom:5432/app python3 main.py && echo "" && echo "=== no APP_ENV (defaults fallback) ===" && python3 main.py

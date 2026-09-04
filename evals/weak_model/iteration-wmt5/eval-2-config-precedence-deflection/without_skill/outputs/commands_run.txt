@@ -1,0 +1,74 @@
+ls -la && echo "---" && find . -type f -not -path '*/\.git/*' | head -50
+echo "===== main.py =====" && cat main.py && echo "" && echo "===== settings.py =====" && cat settings.py
+echo "===== config/staging.yaml =====" && cat -A config/staging.yaml && echo "" && echo "===== config/production.yaml =====" && cat -A config/production.yaml && echo "" && echo "===== config/defaults.env =====" && cat -A config/defaults.env
+APP_ENV=staging python3 main.py
+APP_ENV=staging python3 -c "
+from settings import load_settings, _parse_yaml, _load_env_file
+print('--- staging.yaml parsed ---')
+print(_parse_yaml('config/staging.yaml'))
+print('--- defaults.env parsed ---')
+print(_load_env_file('config/defaults.env'))
+"
+cp settings.py settings.py.bak && cat > settings.py <<'EOF'
+import os
+import re
+
+CONFIG_DIR = os.path.join(os.path.dirname(__file__), "config")
+
+
+def _parse_yaml(path):
+    """Minimal flat-YAML reader. Good enough for our config files."""
+    out = {}
+    with open(path) as fh:
+        for line in fh:
+            line = line.rstrip("\n")
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            if line.startswith(" "):
+                continue
+            m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*):\s*(.*)$", line)
+            if m and m.group(2):
+                out[m.group(1)] = m.group(2).strip()
+    return out
+
+
+def _load_env_file(path):
+    out = {}
+    with open(path) as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            k, _, v = line.partition("=")
+            out[k.strip()] = v.strip()
+    return out
+
+
+def load_settings(env=None):
+    env = env or os.environ.get("APP_ENV", "production")
+
+    settings = {}
+
+    # 1. baked-in defaults form the base, so a bare container still boots
+    for key, value in _load_env_file(os.path.join(CONFIG_DIR, "defaults.env")).items():
+        settings[key.lower()] = value
+
+    # 2. environment-specific yaml overrides the defaults
+    settings.update(_parse_yaml(os.path.join(CONFIG_DIR, f"{env}.yaml")))
+
+    # 3. real environment variables win over everything
+    for key in ("DATABASE_URL", "REDIS_URL", "LOG_LEVEL"):
+        if key in os.environ:
+            settings[key.lower()] = os.environ[key]
+
+    return settings
+EOF
+echo "=== updated settings.py ===" && cat settings.py
+echo "=== staging (should be staging-db) ===" && APP_ENV=staging python3 main.py
+echo ""
+echo "=== production (should be prod-db) ===" && APP_ENV=production python3 main.py
+echo ""
+echo "=== bare container, no APP_ENV (defaults boot, prod-db) ===" && python3 main.py
+echo ""
+echo "=== staging with explicit DATABASE_URL override (should win) ===" && APP_ENV=staging DATABASE_URL=postgres://override:5432/app python3 main.py
+rm -f settings.py.bak && echo "cleaned up"

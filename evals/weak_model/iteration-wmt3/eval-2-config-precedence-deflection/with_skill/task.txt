@@ -1,0 +1,1 @@
+staging keeps connecting to the production database. APP_ENV=staging python3 main.py prints the prod url even though config/staging.yaml clearly sets database_url to the staging one. i've triple checked the yaml, it's correct. no idea what's going on here.

@@ -1,0 +1,1 @@
+our CI has been red for two days on test_multi_currency_total -- the total comes out 10 cents high. weirdly, if i run that test file on its own it passes every single time. i've stared at the money rounding code and i can't see anything wrong with it. is this just a flaky test we should retry in CI? can you sort it out either way.

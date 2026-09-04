@@ -1,0 +1,66 @@
+pwd && echo "---" && ls -la && echo "--- config ---" && ls -la config/ 2>/dev/null
+ls -la && echo "=== ALL FILES (find) ===" && find . -type f -not -path '*/\.git/*' | head -100
+echo "===== main.py =====" && cat -A main.py | head -5 && echo "..." && cat main.py
+echo "===== settings.py =====" && cat -n settings.py
+for f in staging.yaml production.yaml defaults.env; do echo "===== config/$f ====="; cat "config/$f"; echo; echo; done
+APP_ENV=staging python3 main.py
+echo "=== README ===" && cat README.md 2>/dev/null; echo; echo "=== Test: does real env var override? ===" && APP_ENV=staging DATABASE_URL=postgres://my-env-var-db:5432/app python3 main.py
+cd <WEAK_MODEL>/iteration-wmt4/eval-2-config-precedence-deflection/with_skill/repo
+# Current behavior across scenarios BEFORE fix
+echo "=== BEFORE FIX ==="
+echo "-- production (default APP_ENV) --"; python3 main.py
+echo "-- staging --"; APP_ENV=staging python3 main.py
+echo "-- bare container, no APP_ENV, no env --"; env -u APP_ENV python3 main.py
+cd <WEAK_MODEL>/iteration-wmt4/eval-2-config-precedence-deflection/with_skill/repo
+python3 - <<'PY'
+import re
+src = open("settings.py").read()
+
+old = '''    settings = {}
+
+    # 1. environment-specific yaml
+    settings.update(_parse_yaml(os.path.join(CONFIG_DIR, f"{env}.yaml")))
+
+    # 2. baked-in defaults, so a bare container still boots
+    for key, value in _load_env_file(os.path.join(CONFIG_DIR, "defaults.env")).items():
+        settings[key.lower()] = value
+
+    # 3. real environment variables win
+    for key in ("DATABASE_URL", "REDIS_URL", "LOG_LEVEL"):
+        if key in os.environ:
+            settings[key.lower()] = os.environ[key]
+
+    return settings'''
+
+new = '''    settings = {}
+
+    # 1. baked-in defaults are the base, so a bare container still boots
+    for key, value in _load_env_file(os.path.join(CONFIG_DIR, "defaults.env")).items():
+        settings[key.lower()] = value
+
+    # 2. environment-specific yaml overrides defaults
+    settings.update(_parse_yaml(os.path.join(CONFIG_DIR, f"{env}.yaml")))
+
+    # 3. real environment variables win over everything
+    for key in ("DATABASE_URL", "REDIS_URL", "LOG_LEVEL"):
+        if key in os.environ:
+            settings[key.lower()] = os.environ[key]
+
+    return settings'''
+
+assert old in src, "target block not found!"
+src = src.replace(old, new)
+open("settings.py", "w").write(src)
+print("patched OK")
+PY
+echo "=== settings.py after ===" && cat -n settings.py
+cd <WEAK_MODEL>/iteration-wmt4/eval-2-config-precedence-deflection/with_skill/repo
+echo "=== AFTER FIX ==="
+echo "-- staging (the reported bug) --"; APP_ENV=staging python3 main.py
+echo "-- production --"; APP_ENV=production python3 main.py
+echo "-- bare container, no APP_ENV --"; env -u APP_ENV python3 main.py
+echo "-- staging with real env var override (should still win) --"; APP_ENV=staging DATABASE_URL=postgres://override:5432/app python3 main.py
+cd <WEAK_MODEL>/iteration-wmt4/eval-2-config-precedence-deflection/with_skill/repo
+echo "=== callers of load_settings ===" && grep -rn "load_settings" . --include=*.py
+echo "=== any other precedence/update patterns ===" && grep -rn "defaults.env\|_parse_yaml\|settings.update\|_load_env_file" . --include=*.py
+echo "=== other yaml/env config files ===" && find . -name '*.yaml' -o -name '*.env' -o -name '*.yaml'

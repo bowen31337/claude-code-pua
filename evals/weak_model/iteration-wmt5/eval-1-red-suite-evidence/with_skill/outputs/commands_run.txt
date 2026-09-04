@@ -1,0 +1,30 @@
+python3 -m unittest test_slugify 2>&1 | head -100
+cat test_slugify.py
+ls -la; echo "---"; find . -name "*.py" | grep -v test_slugify
+cat -n slugify.py
+python3 - <<'EOF'
+import re
+src = open("slugify.py").read()
+
+# Fix 1: keep underscore so _SPACES can convert it to a dash (don't let _PUNCT eat it)
+src = src.replace(
+    '_PUNCT = re.compile(r"[^a-z0-9\\s-]")',
+    '_PUNCT = re.compile(r"[^a-z0-9\\s_-]")',
+)
+
+# Fix 2: strip a trailing dash left by the max_length slice
+src = src.replace(
+    "    if max_length:\n        s = s[:max_length]\n    return s",
+    "    if max_length:\n        s = s[:max_length].rstrip(\"-\")\n    return s",
+)
+
+# Fix 3: reserve room for the suffix inside the limit
+src = src.replace(
+    '    if len(text) <= limit:\n        return text\n    return text[:limit] + suffix',
+    '    if len(text) <= limit:\n        return text\n    return text[:limit - len(suffix)] + suffix',
+)
+
+open("slugify.py", "w").write(src)
+print(src)
+EOF
+python3 -m unittest test_slugify -v 2>&1

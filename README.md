@@ -14,6 +14,29 @@ It exists to counter five specific failure modes in coding agents:
 This is an English, Claude-Code-only distillation of [tanweai/pua](https://github.com/tanweai/pua).
 See [Attribution](#attribution).
 
+## Benchmark at a glance
+
+Every number below is with-skill vs. baseline on identical fixtures, identical prompts, identical
+grader — the only variable is whether `SKILL.md` was loaded. Full methodology and reproduction
+commands are in the sections that follow.
+
+| Model | Harness | With skill | Baseline | Raw delta | Clean-run delta* | Token cost |
+|---|---|---|---|---|---|---|
+| Claude Opus 5 (×3 runs) | native Claude Code tools | 17/17, 26/26, 26/26 | same, every time | +0.0 | — | 1.39–1.52× |
+| 35B MoE, local (×6 runs) | fenced-block protocol | 142/156 (91.0%) | 137/156 (87.8%) | +3.2pp | **+10.6pp** | 2.40× |
+| 35B MoE, local (×6 runs) | native tool-calling | 145/156 (92.9%) | 145/156 (92.9%) | **0.0pp** | **+6.7pp** | 2.69× |
+
+*Clean-run delta excludes iterations where the skill's own run broke down before finishing (see
+below) — every single breakdown, in both weak-model harnesses, happened on a with-skill run, never
+baseline.
+
+**The honest read:** on Claude Opus 5, the skill has no measurable effect — the model already does
+what it asks. On a genuinely weaker model, there's a real, repeatable quality edge when a run
+completes normally (+6.7 to +10.6 points), but the skill's own length correlates with a higher
+breakdown rate that erodes or fully cancels that edge in the raw aggregate, and it consistently
+costs 1.4–2.7× the tokens. This is not "the skill works" or "the skill doesn't work" — it's a real
+trade whose net sign depends on how much you weight reliability against quality-when-it-lands.
+
 ## Install
 
 ```bash
@@ -150,7 +173,7 @@ The grader executes the resulting code rather than inspecting prose: it calls th
 runs the original test suites against each modified source, checks that real environment variables
 still beat YAML after the precedence fix, and re-runs the ledger suite both fully and in isolation.
 
-## A weaker model: a real edge, but noisier than it first looked
+## A weaker model: two harnesses, the same story from different angles
 
 Every result above used Claude Opus 5. The open question after three consecutive ties was whether
 the skill's value is model-dependent — hard to detect on a model already strong enough to do most
@@ -159,15 +182,14 @@ of this unprompted. Testing that needed an actual weaker model, run through a cu
 Claude Code's native tool use.
 
 **Model:** a 35B-parameter MoE (~3B active params/token), served locally via llama-server — weaker
-than Opus 5, not a small model. **Harness:** a minimal bash-fence ReAct loop; the with-skill system
-prompt is `SKILL.md` with tool references honestly adapted (no promised `Grep`/`WebSearch` that
-don't exist in this harness). Same four fixtures, same grader.
+than Opus 5, not a small model. Same four fixtures, same grader, throughout. Twelve six-iteration
+sweeps in total (96 runs) across two structurally different harnesses.
 
-A single sweep scored 25/26 with-skill vs 24/26 baseline — the first non-tie across all testing.
-**Five more full sweeps were run to check whether that held up. It doesn't hold up simply, but it
-doesn't invert either — the real picture is more specific than either summary.**
+### Harness 1: fenced-block protocol
 
-### Six-iteration aggregate
+A minimal bash-fence ReAct loop (`harness.py`) — the model replies with a ```` ```bash ```` or
+```` ```final ```` block, since this is the plainest possible protocol and doesn't assume the model
+supports real function-calling.
 
 | | Raw aggregate | Excluding 2 breakdown iterations |
 |---|---|---|
@@ -176,40 +198,66 @@ doesn't invert either — the real picture is more specific than either summary.
 | Delta | +3.2pp | **+10.6pp** |
 
 Skill wins 4 of 6 iterations, baseline wins 2. Skill's per-iteration variance is more than double
-baseline's — stdev 2.75 (scores ranging 18–26 out of 26) vs stdev 1.21 (22–25). At that variance,
-+3.2pp on the raw aggregate is weak, noisy signal, not a confirmed effect.
-
-**But the variance has a mechanistic explanation, not just noise.** All 3 max-turns breakdowns
-across all 48 runs happened *exclusively* on with-skill runs — the model abandoned the harness's
+baseline's — stdev 2.75 (scores ranging 18–26 out of 26) vs stdev 1.21 (22–25). All 3 max-turns
+breakdowns across all 48 runs happened *exclusively* on with-skill runs — the model abandoned the
 fenced-block protocol partway through and reverted to its own natively-trained XML tool-call format
-(`<tool_call><function=bash>...`), which the harness's parser can't read, producing garbled failed
-commands until the turn cap. The with-skill system prompt is roughly 3× longer than baseline's; the
-working hypothesis is that length raises the odds of this drift, though 3 instances isn't enough to
-confirm the specific mechanism.
+(`<tool_call><function=bash>...`), which the parser can't read, producing garbled failed commands
+until the turn cap. The working hypothesis: the with-skill system prompt is roughly 3× longer than
+baseline's, and length raises the odds of this drift — but that's a claim about *this harness's
+protocol conflict*, not yet separable from a claim about the skill itself.
 
-**Excluding those two breakdown iterations, the picture is clean and consistent**: +10.6 points,
-and all four surviving iterations individually favor the skill (25, 26, 26, 24 vs 24, 22, 22, 22).
-That's a real, repeatable quality edge when the run completes normally — consistent with the
-original run's qualitative findings (baseline missing sibling bugs entirely; baseline asserting
-"tests pass" without pasting real output).
+### Harness 2: native tool-calling — built specifically to test that hypothesis
 
-**Cost got worse in aggregate, not better**: 2.40× tokens across all 48 runs (up from the
-single-run estimate of 2.33×), while tool-call count stayed essentially flat (1.03×) — the same
-finding as the first run, now with six times the sample: the skill drives longer prose per turn on
-this model, not more actions.
+`harness_tools.py` uses llama-server's actual OpenAI-compatible `tools` parameter instead of asking
+the model to override its trained format. If the fenced-block instability was purely a protocol
+artifact, this should remove it.
 
-### What this does and doesn't show
+**It didn't.** Two breakdowns still occurred — same six-iteration design, same fixtures — both
+again exclusively on with-skill runs, but with a *different* symptom: not XML drift, but the model
+returning a completely empty message with no tool call after seeing real tool output, which native
+tool-calling protocol correctly reads as "done." The task ends silently, unfixed, unexplained.
+Verified directly (0-byte `final_response.md`, confirmed against the raw transcript, and the repo
+state independently checked to confirm the bug was still present).
 
-The single 25/26 result was not simply reproduced — a naive win-count is 4–2, not 6–0, and the raw
-aggregate sits inside the skill's own run-to-run noise. But the aggregate is hiding a real split:
-on runs that complete without a harness-level breakdown, the advantage is both larger and perfectly
-consistent. The skill's own length looks like a liability *specific to this harness design* — a
-bash-fence protocol asks the model to override its native tool-calling training, and that's a
-testable, falsifiable claim, not yet confirmed with 3 data points. The natural next step is
-re-running with llama-server's actual `tools`/function-calling parameter instead of asking the
-model to fight its trained format — which should remove this specific confound and answer more
-cleanly whether the +10.6pp clean-run edge is real. Full writeup, including how the breakdown
-instances were verified rather than assumed: `evals/weak_model/notes.txt` and `notes_repeated.txt`.
+| | Raw aggregate | Excluding 2 breakdown iterations |
+|---|---|---|
+| With skill | **145/156 (92.9%)** | 102/104 (98.1%) |
+| Baseline | **145/156 (92.9%)** | 95/104 (91.3%) |
+| Delta | **0.0pp — exact tie** | +6.7pp |
+
+Skill wins 3, baseline wins 2, one tie. Variance ratio holds almost exactly: with-skill stdev is
+~2.25× baseline's in *both* harnesses (2.75/1.21 fenced-block, 2.03/0.90 here), despite the absolute
+numbers differing — the instability scales with the skill's presence, not with the specific
+protocol. Cost went up, not down: 2.69× tokens (fenced-block: 2.40×), 1.18× tool calls
+(fenced-block: 1.03×) — native tool-calling let baseline finish in fewer, leaner turns, while
+with-skill's longer prompt kept driving the same elaborate verification behavior regardless of
+protocol, widening the ratio.
+
+### What holds across both
+
+**Every breakdown in both harnesses — 5 of 5, across 96 total runs — happened on a with-skill run.
+Zero on baseline, in either harness.** That rules out "it's just the fenced-block protocol fighting
+the model" as the full explanation; the same asymmetry reproduced under the model's own native
+format, with a different specific symptom. The most defensible remaining explanation is the skill's
+own length and complexity — not what it says, but how much of it there is to track.
+
+**Excluding breakdowns, the skill shows a real, positive, repeatable edge in both harnesses** —
+smaller under native tool-calling (+6.7pp) than under fenced-blocks (+10.6pp), but the same
+direction both times, consistent with the original qualitative findings (baseline missing sibling
+bugs entirely; baseline asserting "tests pass" without pasting real output).
+
+**Net effect in raw aggregate went from weakly positive to exactly zero** once the protocol
+confound was removed — because baseline's reliability advantage held steady while its own runs got
+cheaper and cleaner under native tool-calling. That zero isn't "no effect": it's a real quality gain
+almost exactly cancelled by a real reliability cost, on this specific model, at a consistently
+higher token price (1.4–2.7× across every iteration in every harness).
+
+**What's still untested**: whether this reliability cost is a property of the skill's length in
+general, or specific to this one model (a 35B MoE — mixture-of-experts models may have different
+long-context tool-use behavior than dense models of comparable size). A second weaker model, ideally
+a dense one, is the next thing that would actually separate those two explanations. Full writeup for
+both harnesses, including exact verification steps for every breakdown instance:
+`evals/weak_model/notes.txt`, `notes_repeated.txt`, and `notes_tools.txt`.
 
 ## Token cost
 
@@ -260,7 +308,8 @@ evals/
 ├── iteration-2/            4 evals x 2 configs, benchmark.json
 ├── iteration-3/            reference-gating verification
 ├── iteration-4/            post-trim verification
-└── iteration-5/            full suite on the trimmed skill, 4 evals x 2 configs
+├── iteration-5/            full suite on the trimmed skill, 4 evals x 2 configs
+└── weak_model/             weaker-model testing, two harnesses -- see below
 ```
 
 ## Attribution

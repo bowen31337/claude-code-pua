@@ -1,0 +1,65 @@
+pwd && ls -la && echo "---CONFIG DIR---" && ls -la config/ 2>/dev/null
+echo "===== main.py =====" && cat main.py 2>/dev/null; echo; echo "===== config/staging.yaml =====" && cat config/staging.yaml; echo; echo "===== config/production.yaml =====" && cat config/production.yaml; echo; echo "===== config/defaults.env =====" && cat config/defaults.env
+find . -name "settings.py" -not -path "*/node_modules/*" 2>/dev/null; echo "---"; ls -la
+cat -A settings.py | head -5; echo "====="; cat settings.py
+echo "=== APP_ENV in shell ===" && echo "APP_ENV=${APP_ENV:-<unset>}"; echo "=== DATABASE_URL in shell ===" && echo "DATABASE_URL=${DATABASE_URL:-<unset>}"; echo "=== RUN ==="; APP_ENV=staging python3 main.py
+python3 -c "
+from settings import _parse_yaml, _load_env_file, CONFIG_DIR
+import os
+# Step 1: staging yaml
+s = _parse_yaml(CONFIG_DIR + '/staging.yaml')
+print('after yaml  :', s.get('database_url'))
+# Step 2: defaults.env applied, keys lowercased
+for k,v in _load_env_file(CONFIG_DIR + '/defaults.env').items():
+    s[k.lower()] = v
+print('after env   :', s.get('database_url'), '<-- clobbered by defaults.env')
+"
+cp settings.py settings.py.bak
+python3 - <<'PY'
+import re
+src = open('settings.py').read()
+
+old = '''    settings = {}
+
+    # 1. environment-specific yaml
+    settings.update(_parse_yaml(os.path.join(CONFIG_DIR, f"{env}.yaml")))
+
+    # 2. baked-in defaults, so a bare container still boots
+    for key, value in _load_env_file(os.path.join(CONFIG_DIR, "defaults.env")).items():
+        settings[key.lower()] = value
+
+    # 3. real environment variables win
+    for key in ("DATABASE_URL", "REDIS_URL", "LOG_LEVEL"):
+        if key in os.environ:
+            settings[key.lower()] = os.environ[key]
+
+    return settings'''
+
+new = '''    # 1. baked-in defaults are the lowest priority, so a bare container
+    #    still boots. Applied first so anything below can override them.
+    settings = {}
+    for key, value in _load_env_file(os.path.join(CONFIG_DIR, "defaults.env")).items():
+        settings[key.lower()] = value
+
+    # 2. environment-specific yaml overrides defaults
+    settings.update(_parse_yaml(os.path.join(CONFIG_DIR, f"{env}.yaml")))
+
+    # 3. real environment variables win
+    for key in ("DATABASE_URL", "REDIS_URL", "LOG_LEVEL"):
+        if key in os.environ:
+            settings[key.lower()] = os.environ[key]
+
+    return settings'''
+
+assert old in src, "pattern not found!"
+src = src.replace(old, new)
+open('settings.py','w').write(src)
+print("patched")
+PY
+echo "=== resulting load_settings ===" && sed -n '/def load_settings/,/return settings/p' settings.py
+echo "=== staging (your repro) ===" && APP_ENV=staging python3 main.py
+echo; echo "=== production (should still be prod) ===" && APP_ENV=production python3 main.py
+echo; echo "=== env var override still wins (staging env, but DATABASE_URL set) ===" && APP_ENV=staging DATABASE_URL=postgres://override.internal:5432/app python3 main.py
+echo; echo "=== bare container (no APP_ENV) defaults to production ===" && python3 main.py
+echo "=== other references to defaults.env / DATABASE_URL / load_settings ==="; grep -rn "defaults.env\|load_settings\|DATABASE_URL\|_load_env_file" --include="*.py" . 2>/dev/null; echo "=== cleanup backup ==="; rm -f settings.py.bak && echo "removed settings.py.bak"; echo "=== final diff ==="; git diff 2>/dev/null || diff <(git show HEAD:settings.py 2>/dev/null) settings.py 2>/dev/null || echo "(no git)"
+echo "=== other references ==="; grep -rn "defaults.env\|load_settings\|DATABASE_URL\|_load_env_file" --include="*.py" . 2>/dev/null; echo "=== cleanup backup ==="; rm -f settings.py.bak && echo "removed settings.py.bak"; echo "=== git status ==="; git status --short 2>/dev/null || echo "(no git repo)"

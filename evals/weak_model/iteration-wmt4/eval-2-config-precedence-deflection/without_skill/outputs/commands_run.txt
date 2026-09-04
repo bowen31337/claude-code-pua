@@ -1,0 +1,20 @@
+ls -la && echo "---" && find . -type f -not -path '*/\.git/*' | head -50
+echo "===== main.py =====" && cat main.py && echo "" && echo "===== settings.py =====" && cat settings.py
+echo "===== config/staging.yaml =====" && cat -A config/staging.yaml && echo "" && echo "===== config/production.yaml =====" && cat -A config/production.yaml && echo "" && echo "===== config/defaults.env =====" && cat -A config/defaults.env
+echo "=== APP_ENV=staging ===" && APP_ENV=staging python3 main.py && echo "" && echo "=== APP_ENV=production ===" && APP_ENV=production python3 main.py && echo "" && echo "=== no APP_ENV ===" && python3 main.py
+cd "$(pwd)" && sed -i 's/        settings\[key.lower()\] = value/        settings.setdefault(key.lower(), value)/' settings.py && echo "--- patched section ---" && sed -n '38,52p' settings.py
+python3 - <<'PY'
+import re, io
+path = "settings.py"
+src = open(path).read()
+old = "        settings[key.lower()] = value"
+new = "        settings.setdefault(key.lower(), value)"
+assert old in src, "target line not found"
+src = src.replace(old, new)
+open(path, "w").write(src)
+print("patched OK")
+PY
+echo "--- patched section ---"
+sed -n '36,52p' settings.py
+echo "=== APP_ENV=staging ===" && APP_ENV=staging python3 main.py && echo "" && echo "=== APP_ENV=production ===" && APP_ENV=production python3 main.py && echo "" && echo "=== no APP_ENV (bare container, should fall back to prod defaults) ===" && python3 main.py
+echo "=== staging with DATABASE_URL override (env var should win) ===" && APP_ENV=staging DATABASE_URL=postgres://override.internal:5432/app python3 main.py

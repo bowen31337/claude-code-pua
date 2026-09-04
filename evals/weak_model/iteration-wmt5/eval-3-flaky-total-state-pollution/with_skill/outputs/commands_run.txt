@@ -1,0 +1,58 @@
+pwd && ls -la
+find . -type f -name "*.py" | head -50 2>/dev/null; echo "---"; find . -type f -name "*currency*" 2>/dev/null; echo "---"; find . -type f -name "*money*" 2>/dev/null
+echo "===== money.py =====" && cat -n money.py && echo && echo "===== ledger.py =====" && cat -n ledger.py && echo && echo "===== rates.py =====" && cat -n rates.py
+echo "===== test_money.py =====" && cat -n test_money.py && echo && echo "===== test_ledger.py =====" && cat -n test_ledger.py && echo && echo "===== test_conversion.py =====" && cat -n test_conversion.py
+python -m pytest --version 2>/dev/null; echo "---pytest exit: $?"; python -m unittest --version 2>/dev/null | head -1; echo "---unittest available"
+echo "===== Running ALL tests together (simulates CI) =====" && python -m pytest -v 2>&1 | tail -40
+echo "===== Running test_money.py alone (isolated, like the user does) =====" && python -m pytest test_money.py -v 2>&1 | tail -8
+echo
+echo "===== Running test_ledger.py alone =====" && python -m pytest test_ledger.py -v 2>&1 | tail -8
+echo "===== Proving the mechanism: EUR rate after test_conversion runs =====" 
+python -c "
+import rates
+print('EUR rate at import:', rates.get_rate('EUR'))
+# Simulate what test_set_rate_accepts_high_precision does
+rates.set_rate('EUR', '1.1001')
+print('EUR rate after set_rate(1.1001):', rates.get_rate('EUR'))
+print('EUR total for 1000:', (1000 * rates.get_rate('EUR')))
+print('USD 500 + EUR 1000 @1.1001 =', 500 + (1000 * rates.get_rate('EUR')))
+print('That extra 0.10 comes from 1000 * 0.0001 =', 1000 * (rates.get_rate('EUR') - 1.10))
+"
+cp test_conversion.py test_conversion.py.bak && cat > test_conversion.py <<'EOF'
+import unittest
+from decimal import Decimal
+
+import rates
+
+
+class TestConversion(unittest.TestCase):
+    def setUp(self):
+        # The FX job and ops tooling mutate the shared rate table at
+        # runtime, so any override here would leak into later test files
+        # (e.g. test_ledger's multi-currency total). Always restore.
+        self._saved = dict(rates._RATE_CACHE)
+
+    def tearDown(self):
+        rates._RATE_CACHE.clear()
+        rates._RATE_CACHE.update(self._saved)
+
+    def test_published_rate(self):
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.10"))
+
+    def test_to_usd(self):
+        self.assertEqual(rates.to_usd(Decimal("100"), "USD"), Decimal("100"))
+
+    def test_set_rate_accepts_high_precision(self):
+        # The FX job pushes 4-dp rates; make sure they survive round-trip
+        # without being truncated to 2 places.
+        rates.set_rate("EUR", "1.1001")
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.1001"))
+EOF
+echo "=== diff ===" && diff test_conversion.py.bak test_conversion.py
+rm -f test_conversion.py.bak
+echo "===== FULL SUITE (CI scenario, alphabetical) =====" && python -m pytest -v 2>&1 | tail -15
+echo "===== Reverse order (proves order-independence) =====" && python -m pytest -v -p no:randomly test_ledger.py test_conversion.py test_money.py 2>&1 | tail -6
+echo
+echo "===== grep for any other set_rate / _RATE_CACHE mutations across the repo =====" 
+grep -rn "set_rate\|_RATE_CACHE\|reset_rates" --include="*.py" .
+echo "===== Run the previously-failing test in isolation (still green) =====" && python -m pytest test_ledger.py::TestLedger::test_multi_currency_total -v 2>&1 | tail -5

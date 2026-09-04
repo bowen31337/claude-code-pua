@@ -1,0 +1,85 @@
+pwd && echo "---" && ls -la && echo "--- git status ---" && git status 2>/dev/null | head -20
+pwd && echo "--- ls -la ---" && ls -la && echo "--- find any test_multi_currency ---" && find / -name "*multi_currency*" 2>/dev/null | head -20
+ls -la
+ls -la <WEAK_MODEL>/iteration-wmt2/eval-3-flaky-total-state-pollution/with_skill/repo/ 2>&1; echo "=== parent ==="; ls -la <WEAK_MODEL>/iteration-wmt2/eval-3-flaky-total-state-pollution/with_skill/ 2>&1
+cd <WEAK_MODEL>/iteration-wmt2/eval-3-flaky-total-state-pollution/with_skill/repo && for f in README.md task.txt money.py rates.py ledger.py test_money.py test_ledger.py test_conversion.py; do echo "===== $f ====="; cat "$f"; echo; done
+cd <WEAK_MODEL>/iteration-wmt2/eval-3-flaky-total-state-pollution/with_skill/repo && python3 --version && echo "=== isolated: test_ledger.py only ===" && python3 -m unittest test_ledger -v 2>&1
+cd <WEAK_MODEL>/iteration-wmt2/eval-3-flaky-total-state-pollution/with_skill/repo && echo "=== full discover run ===" && python3 -m unittest discover -s . -p "test_*.py" -v 2>&1
+cd <WEAK_MODEL>/iteration-wmt2/eval-3-flaky-total-state-pollution/with_skill/repo && echo "=== run conversion THEN ledger, same process ===" && python3 -m unittest test_conversion test_ledger -v 2>&1 | tail -20 && echo && echo "=== the smoking gun: does test_conversion leave EUR mutated? ===" && python3 -c "
+import rates
+print('EUR before:', rates.get_rate('EUR'))
+rates.set_rate('EUR', '1.1001')
+print('EUR after set_rate in test_set_rate_accepts_high_precision:', rates.get_rate('EUR'))
+print('EUR still mutated at module level:', rates.get_rate('EUR'))
+print('500 + 1000*1.1001 =', 500 + 1000*1.1001)
+"
+cd <WEAK_MODEL>/iteration-wmt2/eval-3-flaky-total-state-pollution/with_skill/repo && cat > test_conversion.py <<'EOF'
+import unittest
+from decimal import Decimal
+
+import rates
+
+
+class TestConversion(unittest.TestCase):
+    def tearDown(self):
+        # set_rate mutates the module-global FX cache; restore the published
+        # table so later test files (e.g. test_ledger) aren't polluted.
+        rates.reset_rates()
+
+    def test_published_rate(self):
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.10"))
+
+    def test_to_usd(self):
+        self.assertEqual(rates.to_usd(Decimal("100"), "USD"), Decimal("100"))
+
+    def test_set_rate_accepts_high_precision(self):
+        # The FX job pushes 4-dp rates; make sure they survive round-trip
+        # without being truncated to 2 places.
+        rates.set_rate("EUR", "1.1001")
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.1001"))
+EOF
+echo "=== written, now verify ===" && echo "--- full discover (CI path) ---" && python3 -m unittest discover -s . -p "test_*.py" 2>&1 | tail -6 && echo "--- isolated ledger (regression) ---" && python3 -m unittest test_ledger 2>&1 | tail -4
+cd <WEAK_MODEL>/iteration-wmt2/eval-3-flaky-total-state-pollution/with_skill/repo && echo "=== grep for any other global-state mutation (set_rate / cache writes) ===" && grep -rn "set_rate\|_RATE_CACHE\|reset_rates" . && echo && echo "=== does money.py actually honor ROUND_HALF_UP? (latent bug check) ===" && python3 -c "
+from decimal import Decimal
+from money import round_money
+# 1.235 must round UP to 1.24 per the docstring (half away from zero)
+print('round_money(1.235) =', round_money(Decimal('1.235')), '(docstring says 1.24)')
+print('round_money(2.675) =', round_money(Decimal('2.675')), '(classic float trap)')
+"
+cd <WEAK_MODEL>/iteration-wmt2/eval-3-flaky-total-state-pollution/with_skill/repo && python3 -c "
+from decimal import Decimal, ROUND_HALF_UP
+from money import round_money
+# Cases where banker's rounding (round-half-to-even) differs from half-away-from-zero
+for v in ['1.245','1.225','1.235','2.675']:
+    got = round_money(Decimal(v))
+    half_up = Decimal(v).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    flag = '  <-- MISMATCH vs docstring (half-away-from-zero)' if got != half_up else ''
+    print(f'round_money({v}) = {got}   half_up_should_be={half_up}{flag}')
+"
+cd <WEAK_MODEL>/iteration-wmt2/eval-3-flaky-total-state-pollution/with_skill/repo && cat > money.py <<'EOF'
+from decimal import Decimal, ROUND_HALF_UP
+
+CENTS = Decimal("0.01")
+
+
+def round_money(amount):
+    """Round a monetary amount to 2 places, half away from zero.
+
+    Half-up matters for invoicing: a customer-facing total must never
+    round a half-cent down, or the books disagree with the statement.
+    """
+    return Decimal(amount).quantize(CENTS, rounding=ROUND_HALF_UP)
+
+
+def format_money(amount, symbol="$"):
+    return f"{symbol}{round_money(amount):,.2f}"
+EOF
+echo "=== verify rounding now matches docstring ===" && python3 -c "
+from decimal import Decimal, ROUND_HALF_UP
+from money import round_money
+for v in ['1.245','1.225','1.235','2.675','1.234','1.236']:
+    got = round_money(Decimal(v))
+    expected = Decimal(v).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    print(f'round_money({v}) = {got}  expected={expected}  {\"OK\" if got==expected else \"FAIL\"}')
+"
+cd <WEAK_MODEL>/iteration-wmt2/eval-3-flaky-total-state-pollution/with_skill/repo && echo "=== FULL SUITE (CI path: discover) ===" && python3 -m unittest discover -s . -p "test_*.py" -v 2>&1 && echo && echo "=== isolated ledger (regression) ===" && python3 -m unittest test_ledger 2>&1 | tail -4 && echo && echo "=== isolated money (regression) ===" && python3 -m unittest test_money 2>&1 | tail -4

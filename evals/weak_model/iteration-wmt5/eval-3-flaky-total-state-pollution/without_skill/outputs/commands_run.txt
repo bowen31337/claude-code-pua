@@ -1,0 +1,60 @@
+pwd && ls -la
+git log --oneline -20 && echo "---BRANCH---" && git branch -a && echo "---STATUS---" && git status
+find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' | head -100
+cat README.md
+cat money.py && echo "=====RATES=====" && cat rates.py
+cat test_money.py && echo "=====TEST_CONVERSION=====" && cat test_conversion.py
+cat ledger.py
+grep -rn "test_multi_currency_total\|multi_currency" . --include="*.py"
+cat test_ledger.py
+echo "=== Running test_ledger.py ALONE ===" && python3 -m unittest test_ledger -v 2>&1
+echo "=== Running full discover suite (as CI does) ===" && python3 -m unittest discover -s . -p "test_*.py" -v 2>&1
+python3 -c "
+import rates
+print('EUR rate before any test:', rates.get_rate('EUR'))
+rates.set_rate('EUR', '1.1001')
+print('EUR rate after set_rate in test_conversion:', rates.get_rate('EUR'))
+print('It stays mutated because nothing calls reset_rates()')
+"
+cat > test_conversion.py << 'EOF'
+import unittest
+from decimal import Decimal
+
+import rates
+
+
+class TestConversion(unittest.TestCase):
+    def setUp(self):
+        # The FX cache is a process-wide global. Restore the published
+        # table before each test so a runtime override in one test can't
+        # leak into another (e.g. multi-currency totals).
+        rates.reset_rates()
+
+    def tearDown(self):
+        # Undo any set_rate() calls made during the test so global state
+        # isn't left mutated for later test files.
+        rates.reset_rates()
+
+    def test_published_rate(self):
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.10"))
+
+    def test_to_usd(self):
+        self.assertEqual(rates.to_usd(Decimal("100"), "USD"), Decimal("100"))
+
+    def test_set_rate_accepts_high_precision(self):
+        # The FX job pushes 4-dp rates; make sure they survive round-trip
+        # without being truncated to 2 places.
+        rates.set_rate("EUR", "1.1001")
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.1001"))
+EOF
+echo "written"
+echo "=== FULL SUITE (CI) ===" && python3 -m unittest discover -s . -p "test_*.py" -v 2>&1
+echo ""
+echo "=== ISOLATED test_ledger.py ===" && python3 -m unittest test_ledger -v 2>&1
+echo ""
+echo "=== ISOLATED test_conversion.py ===" && python3 -m unittest test_conversion -v 2>&1
+echo "=== reversed order (ledger before conversion) ===" && python3 -m unittest test_ledger test_conversion test_money -v 2>&1 | tail -5
+echo ""
+echo "=== conversion last ===" && python3 -m unittest test_ledger test_money test_conversion -v 2>&1 | tail -5
+echo ""
+echo "=== 5x repeat of full discover (deterministic check) ===" && for i in 1 2 3 4 5; do python3 -m unittest discover -s . -p "test_*.py" 2>&1 | tail -1; done

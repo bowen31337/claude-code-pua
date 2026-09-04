@@ -1,0 +1,70 @@
+NATIVE TOOL-CALLING RERUN, TO REMOVE THE FENCED-BLOCK PROTOCOL CONFOUND. The fenced-block harness
+(harness.py) asks the model to override its own natively-trained tool-calling format with an ad-hoc
+```bash/```final convention. All 3 breakdowns across those 48 runs happened exclusively on
+with-skill runs, whose much-longer system prompt was hypothesized to raise the odds of drifting
+back to native format mid-task. This rerun (harness_tools.py) uses llama-server's actual
+OpenAI-compatible `tools` parameter -- the model's own native format, no override -- to test
+whether that specific confound was inflating the skill's apparent instability.
+
+SAME SIX-ITERATION DESIGN, SAME FOUR FIXTURES, SAME GRADER. Raw six-iteration aggregate:
+145/156 (92.9%) with-skill vs 145/156 (92.9%) baseline -- an EXACT tie, 0.0pp delta. Skill wins 3
+iterations, baseline wins 2, one tie (21,26 was the low; wm1/2/4 were skill wins, wm3/6 were
+baseline wins, wm5 tied).
+
+REMOVING THE PROTOCOL CONFOUND DID NOT ELIMINATE THE INSTABILITY -- IT CHANGED ITS SYMPTOM. Two
+breakdowns occurred (wmt3/eval-1/with_skill, wmt6/eval-2/with_skill), both on with-skill runs, both
+verified directly (0-byte final_response.md, confirmed by reading the raw transcript rather than
+inferring from timing.json). Neither is the "reverts to native XML" failure from the fenced-block
+harness -- this is a DIFFERENT symptom: the model's very next turn after seeing real tool output
+(e.g. failing test results) returns a completely empty message with no tool call and no content,
+which native tool-calling protocol correctly treats as "done" -- so the harness ends the task with
+zero explanation, zero fix, and no error, having abandoned the work silently. Verified the repo
+state independently in one case: the bug was still fully present, unfixed.
+
+THE COMBINED CROSS-HARNESS FINDING IS THE MAIN RESULT HERE: across BOTH harnesses -- 96 total
+weak-model runs, two structurally different protocols, two different specific breakdown
+symptoms -- every single breakdown (5 of 5: 3 fenced-block max-turns, 2 tool-calling empty-final)
+occurred on a with-skill run. Zero occurred on baseline, in either harness. This is not explained
+by the fenced-block protocol confound, since it reproduced with a completely different mechanism
+under native tool-calling. The most defensible remaining explanation is the skill's own system
+prompt length and complexity (roughly 3x longer than baseline's in both harnesses) -- more context
+for the model to track, more turns needed on average, more opportunities for whatever underlying
+instability this weaker/smaller model has to surface.
+
+EXCLUDING THE 2 BREAKDOWN ITERATIONS, THE CLEAN-RUN PICTURE IS AGAIN POSITIVE FOR THE SKILL, THOUGH
+SMALLER THAN IN THE FENCED-BLOCK HARNESS: 102/104 (98.1%) vs 95/104 (91.3%), +6.7pp (fenced-block
+was +10.6pp). Directionally consistent across both harnesses -- when the run completes without a
+breakdown, the skill shows a real, positive, repeatable edge -- but the magnitude differs, and 4
+clean data points per harness (8 total across both) is not a large sample to pin an exact number on.
+
+VARIANCE IS STILL MORE THAN DOUBLE BASELINE'S, THOUGH BOTH SHRANK: with_skill stdev 2.03 (fenced-
+block: 2.75), baseline stdev 0.90 (fenced-block: 1.21). The RATIO of skill-variance to baseline-
+variance is consistent across both harnesses (~2.25x, ~2.26x) even though the absolute numbers
+differ -- another piece of evidence that the instability is a property of the skill's length/
+complexity rather than of the fenced-block protocol specifically.
+
+COST WENT UP, NOT DOWN, WITH NATIVE TOOL-CALLING: 2.69x tokens (fenced-block: 2.40x), 1.18x tool
+calls (fenced-block: 1.03x). This makes sense on reflection: native tool-calling let BASELINE
+complete tasks in fewer, leaner turns (no wasted "you didn't use the right format" nudges), while
+with-skill's longer system prompt still drove long, elaborate verification behavior regardless of
+protocol -- so baseline got cheaper faster than skill did, widening the ratio even as raw skill
+cost stayed roughly flat across harnesses (1,932,979 fenced-block vs 1,259,822 here is lower in
+absolute terms, since these runs were also generally faster/shorter across the board -- the ratio
+moved because baseline dropped even more).
+
+WHAT THIS SETTLES AND WHAT IT DOESN'T:
+1. The fenced-block harness's instability was NOT purely a protocol-compatibility artifact. It
+   reproduces, with a different specific symptom, under native tool-calling. That was the live,
+   falsifiable hypothesis from the previous round, and it did not survive this test.
+2. The raw net effect of the skill on this weaker model, under the more neutral native-tool-calling
+   harness, is as close to zero as two independent 26-point aggregates can land: 145/156 both.
+   That net zero is not "no effect" in a simple sense -- it is a real positive quality effect
+   (+6.7pp on clean runs) almost exactly cancelled by a real reliability cost (100% of all
+   breakdowns across 96 runs, in both harnesses, on with-skill only).
+3. Cost is unambiguous and consistent in both harnesses: the skill costs meaningfully more compute
+   (2.4-2.7x tokens) while taking essentially the same number of actions (1.03-1.18x tool calls) --
+   the extra cost is verbosity and reasoning depth, not more work performed.
+4. What remains untested: whether this reliability cost is specific to this exact model (a 35B MoE,
+   which may have training-data quirks around long-context tool use), or would appear on other
+   weaker models too. A second weaker model, ideally a dense model rather than another MoE, is the
+   next thing that would actually distinguish "property of this skill" from "property of this model."

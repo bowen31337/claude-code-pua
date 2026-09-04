@@ -1,0 +1,66 @@
+pwd && ls -la
+find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/venv/*' -not -path '*/__pycache__/*' | head -100
+cat README.md
+cat money.py
+cat rates.py
+cat ledger.py
+cat test_money.py
+cat test_conversion.py
+cat test_ledger.py
+echo "=== FULL SUITE (as CI runs it) ===" && python3 -m unittest discover -s . -p "test_*.py" 2>&1
+echo "=== test_ledger.py ALONE ===" && python3 -m unittest test_ledger -v 2>&1
+python3 -c "
+import rates
+from decimal import Decimal
+# What test_conversion does:
+rates.set_rate('EUR', '1.1001')
+print('EUR rate after test_conversion runs:', rates.get_rate('EUR'))
+# Then test_ledger's total:
+total = Decimal('500') + Decimal('1000') * rates.get_rate('EUR')
+print('Resulting total:', total)
+print('=> 10 cents high, every single time.')
+"
+echo "=== Confirm the polluting test and its order ===" && python3 -m unittest discover -s . -p "test_*.py" -v 2>&1 | head -20
+cat > test_conversion.py << 'EOF'
+import unittest
+from decimal import Decimal
+
+import rates
+
+
+class TestConversion(unittest.TestCase):
+    def setUp(self):
+        # These tests exercise set_rate(), which mutates the shared,
+        # process-wide FX cache in rates.py. Reset it after every test so a
+        # runtime override in one test can't leak into another test module
+        # (this is what was making test_multi_currency_total come out 10c high).
+        self._cleanup = rates.reset_rates
+        self.addCleanup(self._cleanup)
+
+    def test_published_rate(self):
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.10"))
+
+    def test_to_usd(self):
+        self.assertEqual(rates.to_usd(Decimal("100"), "USD"), Decimal("100"))
+
+    def test_set_rate_accepts_high_precision(self):
+        # The FX job pushes 4-dp rates; make sure they survive round-trip
+        # without being truncated to 2 places.
+        rates.set_rate("EUR", "1.1001")
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.1001"))
+EOF
+echo "written"
+echo "=== FULL SUITE (CI) ===" && python3 -m unittest discover -s . -p "test_*.py" 2>&1
+echo ""
+echo "=== test_ledger.py ALONE ===" && python3 -m unittest test_ledger 2>&1
+echo ""
+echo "=== test_conversion.py ALONE ===" && python3 -m unittest test_conversion 2>&1
+echo "=== 5 consecutive full-suite runs ===" && for i in 1 2 3 4 5; do python3 -m unittest discover -s . -p "test_*.py" 2>&1 | tail -1; done
+echo ""
+echo "=== Reverse order (ledger before conversion) ===" && python3 -m unittest test_ledger test_conversion test_money 2>&1 | tail -3
+echo ""
+echo "=== Confirm EUR rate is clean after a conversion test run ===" && python3 -c "
+import test_conversion
+import rates
+print('EUR after test_conversion ran:', rates.get_rate('EUR'))
+"

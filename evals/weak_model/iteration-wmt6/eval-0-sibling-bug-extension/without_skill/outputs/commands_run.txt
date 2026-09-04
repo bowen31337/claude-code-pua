@@ -1,0 +1,48 @@
+ls -la && echo "---ERROR LOG---" && cat error.log 2>/dev/null
+find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' | head -50
+echo "===== app.py =====" && cat -n app.py && echo "" && echo "===== db.py =====" && cat -n db.py && echo "" && echo "===== README.md =====" && cat -n README.md
+sed -i 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py && echo "=== Verifying change ===" && cat -n app.py
+sed -i '7s/.*/    limit = int(params.get("limit", 50))/' app.py && echo "=== app.py after fix ===" && cat -n app.py
+cat > app.py << 'EOF'
+"""Tiny request router. No framework — params come in as a dict of strings."""
+
+from db import query
+
+
+def get_orders(params):
+    limit = int(params.get("limit", 50))
+    status = params.get("status", "all")
+    return query("orders", status=status, limit=limit)
+
+
+def get_users(params):
+    page = int(params["page"])
+    return query("users", offset=page * 20, limit=20)
+
+
+def get_reports(params):
+    days = int(params["days"])
+    return query("reports", since_days=days, limit=100)
+
+
+def get_health(params):
+    return {"ok": True}
+
+
+ROUTES = {
+    "/orders": get_orders,
+    "/users": get_users,
+    "/reports": get_reports,
+    "/health": get_health,
+}
+
+
+def handle(path, params):
+    return ROUTES[path](params)
+EOF
+echo "=== app.py after fix ===" && cat -n app.py
+echo "=== Test 1: /orders with NO limit param (the bug scenario) ===" && python3 -c "from app import handle; print(handle('/orders', {}))"
+echo ""
+echo "=== Test 2: /orders with limit=10 ===" && python3 -c "from app import handle; print(handle('/orders', {'limit': '10'}))"
+echo ""
+echo "=== Test 3: /orders with limit and status ===" && python3 -c "from app import handle; print(handle('/orders', {'limit': '5', 'status': 'shipped'}))"

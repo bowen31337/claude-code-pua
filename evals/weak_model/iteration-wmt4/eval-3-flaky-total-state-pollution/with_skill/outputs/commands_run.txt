@@ -1,0 +1,84 @@
+pwd && echo "---" && ls -la && echo "--- git status ---" && git status 2>/dev/null | head -20
+ls -la <WEAK_MODEL>/iteration-wmt4/eval-3-flaky-total-state-pollution/with_skill/repo/ 2>/dev/null; echo "--- parent dirs ---"; ls -la <WEAK_MODEL>/iteration-wmt4/eval-3-flaky-total-state-pollution/ 2>/dev/null; echo "--- with_skill ---"; ls -la <WEAK_MODEL>/iteration-wmt4/eval-3-flaky-total-state-pollution/with_skill/ 2>/dev/null
+cd <WEAK_MODEL>/iteration-wmt4/eval-3-flaky-total-state-pollution/with_skill/repo/ && for f in README.md money.py ledger.py rates.py test_money.py test_ledger.py test_conversion.py task.txt; do echo "===== $f ====="; cat "$f"; echo; done
+cd <WEAK_MODEL>/iteration-wmt4/eval-3-flaky-total-state-pollution/with_skill/repo/ && echo "===== FULL SUITE (as CI runs it) =====" && python3 -m unittest discover -s . -p "test_*.py" 2>&1; echo; echo "EXIT: $?"
+cd <WEAK_MODEL>/iteration-wmt4/eval-3-flaky-total-state-pollution/with_skill/repo/ && echo "===== test_ledger.py ALONE =====" && python3 -m unittest test_ledger -v 2>&1; echo; echo "EXIT: $?"; echo; echo "===== test_conversion.py ALONE =====" && python3 -m unittest test_conversion -v 2>&1; echo; echo "EXIT: $?"
+cd <WEAK_MODEL>/iteration-wmt4/eval-3-flaky-total-state-pollution/with_skill/repo/ && python3 -c "
+import rates
+from ledger import Ledger
+print('EUR rate before anything:', rates.get_rate('EUR'))
+# Simulate what test_conversion::test_set_rate_accepts_high_precision does
+rates.set_rate('EUR', '1.1001')
+print('EUR rate after set_rate(1.1001):', rates.get_rate('EUR'))
+book = Ledger().add('500.00','USD').add('1000.00','EUR')
+print('Ledger total with leaked rate:', book.total_usd())
+print('Expected:', 500 + 1000*1.1001, '-> 1600.10')
+"
+cd <WEAK_MODEL>/iteration-wmt4/eval-3-flaky-total-state-pollution/with_skill/repo/ && python3 -c "
+import unittest, sys
+loader = unittest.TestLoader()
+suite = loader.discover(start_dir='.', pattern='test_*.py')
+for test in suite:
+    if isinstance(test, unittest.TestSuite):
+        for t in test:
+            print(t.id())
+"
+cd <WEAK_MODEL>/iteration-wmt4/eval-3-flaky-total-state-pollution/with_skill/repo/ && python3 -c "
+import unittest
+loader = unittest.TestLoader()
+suite = loader.discover(start_dir='.', pattern='test_*.py')
+def walk(s):
+    for t in s:
+        if isinstance(t, unittest.TestSuite):
+            walk(t)
+        else:
+            print(t.id())
+walk(suite)
+"
+cd <WEAK_MODEL>/iteration-wmt4/eval-3-flaky-total-state-pollution/with_skill/repo/ && python3 -c "
+from decimal import Decimal
+from money import round_money
+# Half-cent cases: docstring promises 'half away from zero'
+cases = ['1.235','1.245','1.225','2.675','0.125','0.135']
+print('amount   round_money  half-away(quantize)  match?')
+for c in cases:
+    got = round_money(Decimal(c))
+    expected = Decimal(c).quantize(Decimal('0.01'), rounding='ROUND_HALF_UP')
+    print(f'{c:>7}   {str(got):>12}   {str(expected):>18}      {got==expected}')
+"
+cd <WEAK_MODEL>/iteration-wmt4/eval-3-flaky-total-state-pollution/with_skill/repo/ && cp test_conversion.py test_conversion.py.bak && python3 - <<'PY'
+import re
+p = "test_conversion.py"
+src = open(p).read()
+old = '''    def test_set_rate_accepts_high_precision(self):
+        # The FX job pushes 4-dp rates; make sure they survive round-trip
+        # without being truncated to 2 places.
+        rates.set_rate("EUR", "1.1001")
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.1001"))'''
+new = '''    def test_set_rate_accepts_high_precision(self):
+        # set_rate mutates the global FX table; restore it after so we don't
+        # leak a 1.1001 EUR rate into later test files (e.g. the ledger total).
+        self.addCleanup(rates.reset_rates)
+        # The FX job pushes 4-dp rates; make sure they survive round-trip
+        # without being truncated to 2 places.
+        rates.set_rate("EUR", "1.1001")
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.1001"))'''
+assert old in src, "pattern not found"
+open(p, "w").write(src.replace(old, new))
+print("patched")
+PY
+echo "===== resulting test_conversion.py =====" && cat test_conversion.py
+cd <WEAK_MODEL>/iteration-wmt4/eval-3-flaky-total-state-pollution/with_skill/repo/ && echo "===== FULL SUITE (run 1) =====" && python3 -m unittest discover -s . -p "test_*.py" 2>&1; echo "EXIT: $?"; echo; echo "===== FULL SUITE (run 2) =====" && python3 -m unittest discover -s . -p "test_*.py" 2>&1; echo "EXIT: $?"; echo; echo "===== FULL SUITE (run 3) =====" && python3 -m unittest discover -s . -p "test_*.py" 2>&1; echo "EXIT: $?"
+cd <WEAK_MODEL>/iteration-wmt4/eval-3-flaky-total-state-pollution/with_skill/repo/ && echo "===== conversion THEN ledger, explicitly =====" && python3 -m unittest test_conversion test_ledger 2>&1; echo "EXIT: $?"; echo; echo "===== ledger THEN conversion (reversed) =====" && python3 -m unittest test_ledger test_conversion 2>&1; echo "EXIT: $?"; echo; echo "===== verify global cache is clean after conversion runs =====" && python3 -c "
+import unittest
+loader = unittest.TestLoader()
+suite = loader.loadTestsFromName('test_conversion.TestConversion.test_set_rate_accepts_high_precision')
+unittest.TextTestRunner(verbosity=0).run(suite)
+import rates
+print('EUR rate after test_conversion ran:', rates.get_rate('EUR'))
+assert rates.get_rate('EUR') == __import__('decimal').Decimal('1.10'), 'still leaked!'
+print('OK: cache restored to published 1.10')
+"
+cd <WEAK_MODEL>/iteration-wmt4/eval-3-flaky-total-state-pollution/with_skill/repo/ && rm -f test_conversion.py.bak && echo "===== FINAL FULL SUITE =====" && python3 -m unittest discover -s . -p "test_*.py" 2>&1; echo "EXIT: $?"; echo; echo "===== files in repo =====" && ls -la
+cd <WEAK_MODEL>/iteration-wmt4/eval-3-flaky-total-state-pollution/with_skill/repo/ && ls -la && echo "--- git diff (if any) ---" && git diff 2>/dev/null || echo "(no git repo)"
+cd <WEAK_MODEL>/iteration-wmt4/eval-3-flaky-total-state-pollution/with_skill/repo/ && find . -maxdepth 1 -type f | sort

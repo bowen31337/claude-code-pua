@@ -1,0 +1,46 @@
+pwd && ls -la
+grep -rn "test_multi_currency_total" --include="*.py" --include="*.js" --include="*.ts" --include="*.rb" --include="*.go" --include="*.java" . 2>/dev/null | head -50
+cat test_ledger.py
+ls -la && echo "---" && find . -name "*.py" | grep -v test_ledger | head -50
+cat money.py
+cat ledger.py
+cat rates.py; echo "=== test_conversion ==="; cat test_conversion.py; echo "=== test_money ==="; cat test_money.py
+echo "=== test_ledger.py ALONE ===" && python -m unittest test_ledger -v 2>&1; echo "EXIT: $?"
+echo "=== FULL SUITE (as CI would run) ===" && python -m unittest discover -v 2>&1; echo "EXIT: $?"
+python -c "
+from decimal import Decimal
+# What the test expects: 500 USD + 1000 EUR @ 1.10
+print('expected: 500 + 1000*1.10 =', Decimal('500') + Decimal('1000')*Decimal('1.10'))
+# What test_conversion sets EUR to and never resets:
+print('leaked:   500 + 1000*1.1001 =', Decimal('500') + Decimal('1000')*Decimal('1.1001'))
+"
+echo "=== confirm test execution order (alphabetical) ===" && python -m unittest discover -v 2>&1 | grep -E "test_set_rate|test_multi_currency"
+echo "=== does any test call reset_rates? ===" && grep -rn "reset_rates" . || echo "NONE — global rate cache is never restored"
+cp test_conversion.py test_conversion.py.bak && python - <<'PY'
+import re
+src = open("test_conversion.py").read()
+# add setUp that resets rates before each test
+src = src.replace(
+    "class TestConversion(unittest.TestCase):\n",
+    "class TestConversion(unittest.TestCase):\n"
+    "    def setUp(self):\n"
+    "        # These tests mutate the shared FX rate cache; isolate them\n"
+    "        # from the rest of the suite so a leaked rate can't bleed\n"
+    "        # into other test files.\n"
+    "        rates.reset_rates()\n",
+)
+open("test_conversion.py", "w").write(src)
+print("patched")
+PY
+cat test_conversion.py
+python - <<'PY'
+src = open("test_conversion.py").read()
+src = src.replace("        rates.reset_rates()\n    def test_published_rate",
+                  "        rates.reset_rates()\n\n    def test_published_rate")
+open("test_conversion.py","w").write(src)
+PY
+echo "=== FULL SUITE after fix ===" && python -m unittest discover -v 2>&1; echo "EXIT: $?"
+echo "=== run 5x to confirm determinism ===" && for i in 1 2 3 4 5; do python -m unittest discover 2>&1 | tail -1; done
+echo "=== individual files still pass ===" && for f in test_conversion test_money test_ledger; do echo "-- $f --"; python -m unittest $f 2>&1 | tail -1; done
+echo "=== cleanup backup ===" && rm -f test_conversion.py.bak && echo "removed"
+echo "=== confirm no leftover .pyc from backup ===" && ls *.bak 2>/dev/null || echo "no backups remain"

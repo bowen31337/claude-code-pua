@@ -1,0 +1,62 @@
+pwd && ls -la
+git log --oneline -20 && echo "---BRANCH---" && git branch -a && echo "---STATUS---" && git status
+find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/venv/*' -not -path '*/__pycache__/*' | head -100
+cat README.md
+echo "===== money.py =====" && cat money.py && echo "===== rates.py =====" && cat rates.py
+echo "===== ledger.py =====" && cat ledger.py
+echo "===== test_money.py =====" && cat test_money.py && echo "===== test_conversion.py =====" && cat test_conversion.py && echo "===== test_ledger.py =====" && cat test_ledger.py
+echo "===== FULL SUITE (as CI runs it) =====" && python3 -m unittest discover -s . -p "test_*.py" 2>&1
+echo "===== LEDGER TEST ALONE =====" && python3 -m unittest test_ledger -v 2>&1
+python3 -c "
+from decimal import Decimal
+import rates
+
+# Simulate what test_conversion does (alphabetical: test_conversion runs before test_ledger)
+print('EUR rate at start:', rates.get_rate('EUR'))
+rates.set_rate('EUR', '1.1001')   # from test_set_rate_accepts_high_precision
+print('EUR rate after set_rate test:', rates.get_rate('EUR'))
+
+# Now test_multi_currency_total runs with the polluted rate
+total = Decimal('500.00') + Decimal('1000.00') * rates.get_rate('EUR')
+print('Result with polluted rate:', total)
+print('Result with correct 1.10 rate:', Decimal('500.00') + Decimal('1000.00') * Decimal('1.10'))
+"
+echo "=== discovery order (alphabetical) ===" && python3 -m unittest discover -s . -p "test_*.py" -v 2>&1 | head -20
+cp test_conversion.py test_conversion.py.bak && cp test_ledger.py test_ledger.py.bak && echo "backups made"
+cat > test_conversion.py << 'EOF'
+import unittest
+from decimal import Decimal
+
+import rates
+
+
+class TestConversion(unittest.TestCase):
+    def setUp(self):
+        # The FX cache is a process-global; make sure every test starts
+        # from the published table and leaves it untouched behind it.
+        rates.reset_rates()
+
+    def tearDown(self):
+        rates.reset_rates()
+
+    def test_published_rate(self):
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.10"))
+
+    def test_to_usd(self):
+        self.assertEqual(rates.to_usd(Decimal("100"), "USD"), Decimal("100"))
+
+    def test_set_rate_accepts_high_precision(self):
+        # The FX job pushes 4-dp rates; make sure they survive round-trip
+        # without being truncated to 2 places.
+        rates.set_rate("EUR", "1.1001")
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.1001"))
+EOF
+echo "written"
+echo "===== FULL SUITE (CI run) =====" && python3 -m unittest discover -s . -p "test_*.py" 2>&1
+echo "===== LEDGER TEST ALONE =====" && python3 -m unittest test_ledger -v 2>&1
+echo "=== 5 consecutive full runs ===" && for i in 1 2 3 4 5; do python3 -m unittest discover -s . -p "test_*.py" 2>&1 | tail -1; done
+echo "=== reverse-ish order: ledger before conversion ===" && python3 -m unittest test_ledger test_conversion test_money 2>&1 | tail -3
+echo "=== only conversion then ledger ===" && python3 -m unittest test_conversion test_ledger 2>&1 | tail -3
+rm -f test_conversion.py.bak test_ledger.py.bak && echo "cleaned up" && git diff 2>/dev/null || diff <(cat) /dev/null 2>/dev/null; echo "--- final test_conversion.py ---" && cat test_conversion.py
+rm -f test_conversion.py.bak test_ledger.py.bak && echo "backups removed" && ls test_*.py
+ls -1 test_*.py && echo "---" && cat test_conversion.py

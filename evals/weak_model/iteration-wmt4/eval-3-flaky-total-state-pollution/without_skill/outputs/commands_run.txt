@@ -1,0 +1,62 @@
+pwd && ls -la
+find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' | head -100
+cat README.md
+cat money.py
+cat rates.py
+cat ledger.py
+cat test_money.py
+cat test_conversion.py
+cat test_ledger.py
+python3 -m unittest discover -s . -p "test_*.py" 2>&1 | tail -30
+echo "=== run test_ledger.py alone ===" && python3 -m unittest test_ledger 2>&1 | tail -5
+echo ""
+echo "=== run test_conversion.py then test_ledger.py (order matters in discover) ==="
+python3 -m unittest test_conversion test_ledger 2>&1 | tail -15
+python3 -c "
+import rates
+print('EUR before:', rates.get_rate('EUR'))
+# test_set_rate_accepts_high_precision runs first (alphabetical within module)
+rates.set_rate('EUR', '1.1001')
+print('EUR after set_rate 1.1001:', rates.get_rate('EUR'))
+# Now the ledger total: 500 USD + 1000 EUR @ 1.1001
+total = 500 + 1000 * rates.get_rate('EUR')
+print('1000 EUR * 1.1001 =', total)
+print('500 + that =', total)
+"
+cat > test_conversion.py << 'EOF'
+import unittest
+from decimal import Decimal
+
+import rates
+
+
+class TestConversion(unittest.TestCase):
+    def tearDown(self):
+        # This test mutates the module-level FX cache; restore it so we
+        # don't leak a 4-dp EUR rate into later test modules (e.g. the
+        # ledger total test, which assumes the published 1.10 rate).
+        rates.reset_rates()
+
+    def test_published_rate(self):
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.10"))
+
+    def test_to_usd(self):
+        self.assertEqual(rates.to_usd(Decimal("100"), "USD"), Decimal("100"))
+
+    def test_set_rate_accepts_high_precision(self):
+        # The FX job pushes 4-dp rates; make sure they survive round-trip
+        # without being truncated to 2 places.
+        rates.set_rate("EUR", "1.1001")
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.1001"))
+EOF
+echo "written"
+echo "=== full discovery run (the CI scenario) ===" && python3 -m unittest discover -s . -p "test_*.py" 2>&1 | tail -6
+echo ""
+echo "=== run test_ledger.py alone (isolation) ===" && python3 -m unittest test_ledger 2>&1 | tail -4
+echo ""
+echo "=== run test_conversion.py alone ===" && python3 -m unittest test_conversion 2>&1 | tail -4
+echo "=== ledger first, then conversion ===" && python3 -m unittest test_ledger test_conversion 2>&1 | tail -4
+echo ""
+echo "=== conversion first, then ledger ===" && python3 -m unittest test_conversion test_ledger 2>&1 | tail -4
+echo ""
+echo "=== run full discovery 5x to check determinism ===" && for i in 1 2 3 4 5; do python3 -m unittest discover -s . -p "test_*.py" 2>&1 | grep -E "Ran|OK|FAILED"; echo "---"; done

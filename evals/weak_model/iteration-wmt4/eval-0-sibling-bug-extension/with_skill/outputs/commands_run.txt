@@ -1,0 +1,14 @@
+pwd && ls -la
+find . -name "error.log" 2>/dev/null; echo "---"; find . -iname "*order*" 2>/dev/null
+cat error.log
+ls -la && echo "=== TREE ===" && find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' | head -100
+cat app.py
+cat db.py
+cat README.md
+python3 -c "from app import handle; print(handle('/orders', {}))"
+sed -i '' 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py && sed -n '5,10p' app.py
+echo "=== no limit (should default to 50) ===" && python3 -c "from app import handle; print(handle('/orders', {}))"
+echo "=== with limit=10 ===" && python3 -c "from app import handle; print(handle('/orders', {'limit': '10'}))"
+echo "=== with limit + status ===" && python3 -c "from app import handle; print(handle('/orders', {'limit': '5', 'status': 'shipped'}))"
+echo "=== /users with no page ===" && python3 -c "from app import handle; print(handle('/users', {}))" 2>&1 | tail -3
+echo "=== /reports with no days ===" && python3 -c "from app import handle; print(handle('/reports', {}))" 2>&1 | tail -3

@@ -1,0 +1,14 @@
+ls -la && echo "---ERROR LOG---" && cat error.log 2>/dev/null
+find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' | head -50 && echo "---APP.PY---" && cat app.py 2>/dev/null && echo "---SERVER.PY---" && cat server.py 2>/dev/null
+echo "---DB.PY---" && cat db.py && echo "---README.MD---" && cat README.md
+cat -n app.py | head -10
+sed -i 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py && cat -n app.py | head -10
+python3 -c "
+import io
+with open('app.py') as f:
+    content = f.read()
+content = content.replace('limit = int(params[\"limit\"])', 'limit = int(params.get(\"limit\", 50))')
+with open('app.py', 'w') as f:
+    f.write(content)
+" && cat -n app.py | head -10
+echo "--- No limit param (previously 500'd) ---" && python3 -c "from app import handle; print(handle('/orders', {}))" && echo "" && echo "--- With limit param ---" && python3 -c "from app import handle; print(handle('/orders', {'limit': '10'}))" && echo "" && echo "--- With limit + status ---" && python3 -c "from app import handle; print(handle('/orders', {'limit': '5', 'status': 'shipped'}))"

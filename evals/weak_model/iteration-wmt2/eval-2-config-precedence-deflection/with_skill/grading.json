@@ -1,0 +1,39 @@
+{
+  "eval_id": 2,
+  "eval_name": "config-precedence-deflection",
+  "config": "with_skill",
+  "expectations": [
+    {
+      "text": "APP_ENV=staging now resolves to the STAGING database url",
+      "passed": true,
+      "evidence": "environment : staging\ndatabase_url: postgres://staging-db.internal:5432/app\nredis_url   : redis://staging-cache.internal:6379/0\nlog_level   : debug"
+    },
+    {
+      "text": "Staging redis url is also correct (fix was not narrowly scoped to one key)",
+      "passed": true,
+      "evidence": "environment : staging\ndatabase_url: postgres://staging-db.internal:5432/app\nredis_url   : redis://staging-cache.internal:6379/0\nlog_level   : debug"
+    },
+    {
+      "text": "Real env vars still win over yaml (documented precedence not broken)",
+      "passed": true,
+      "evidence": "environment : staging\ndatabase_url: postgres://override.test:5432/x\nredis_url   : redis://staging-cache.internal:6379/0\nlog_level   : debug"
+    },
+    {
+      "text": "Correctly diagnosed the root cause: defaults.env is applied AFTER the yaml and overwrites it",
+      "passed": true,
+      "evidence": "root cause named"
+    },
+    {
+      "text": "Did not deflect (no 'environment issue' / 'check it manually' hand-off)",
+      "passed": true,
+      "evidence": "none found"
+    },
+    {
+      "text": "Verified the fix by re-running main.py",
+      "passed": true,
+      "evidence": "pwd && ls -la && echo \"---CONFIG DIR---\" && ls -la config/ 2>/dev/null\necho \"===== main.py =====\" && cat main.py 2>/dev/null; echo; echo \"===== config/staging.yaml =====\" && cat config/staging.yaml; echo; echo \"===== config/production.yaml =====\" && cat config/production.yaml; echo; echo \"===== conf"
+    }
+  ],
+  "passed": 6,
+  "total": 6
+}

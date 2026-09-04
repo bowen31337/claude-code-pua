@@ -1,0 +1,99 @@
+ls -la && echo "---" && find . -name "*.py" -not -path "*/node_modules/*" -not -path "*/.git/*" | head -50
+echo "=== slugify.py ===" && cat slugify.py && echo "" && echo "=== test_slugify.py ===" && cat test_slugify.py
+python3 -m unittest test_slugify -v 2>&1
+python3 -c "
+from slugify import slugify, truncate, word_count
+print('underscores:', repr(slugify('hello_world')))
+print('maxlen:', repr(slugify('The Quick Brown', max_length=10)))
+print('truncate:', repr(truncate('abcdefghij', 8)))
+"
+cat > slugify.py <<'EOF'
+import re
+
+_PUNCT = re.compile(r"[^a-z0-9\s-_]")
+_SPACES = re.compile(r"[\s_]+")
+
+
+def slugify(text, max_length=None):
+    """Turn arbitrary text into a URL slug."""
+    s = text.lower()
+    s = _PUNCT.sub("", s)
+    s = _SPACES.sub("-", s)
+    s = s.strip("-")
+    if max_length:
+        s = s[:max_length].strip("-")
+    return s
+
+
+def truncate(text, limit, suffix="..."):
+    """Shorten text to `limit` characters, appending suffix if cut.
+
+    The returned string never exceeds `limit` characters in total
+    (content + suffix).
+    """
+    if len(text) <= limit:
+        return text
+    return text[:max(0, limit - len(suffix))] + suffix
+
+
+def word_count(text):
+    """Count words, ignoring extra whitespace."""
+    return len(text.split(" "))
+EOF
+echo "=== new slugify.py ===" && cat slugify.py
+python3 -m unittest test_slugify -v 2>&1
+python3 -c "
+import re
+for pat in [r'[^a-z0-9\s-_]', r'[^a-z0-9\s_-]', r'[^a-z0-9\-_s]', r'[^a-z0-9\s\-_]']:
+    try:
+        re.compile(pat)
+        print('OK  ', pat)
+    except re.error as e:
+        print('FAIL', pat, '->', e)
+"
+sed -i 's/\^a-z0-9\\\\s-_]/[^a-z0-9\\\\s_-]/' slugify.py && grep -n "_PUNCT" slugify.py
+cat > slugify.py <<'EOF'
+import re
+
+_PUNCT = re.compile(r"[^a-z0-9\s_-]")
+_SPACES = re.compile(r"[\s_]+")
+
+
+def slugify(text, max_length=None):
+    """Turn arbitrary text into a URL slug."""
+    s = text.lower()
+    s = _PUNCT.sub("", s)
+    s = _SPACES.sub("-", s)
+    s = s.strip("-")
+    if max_length:
+        s = s[:max_length].strip("-")
+    return s
+
+
+def truncate(text, limit, suffix="..."):
+    """Shorten text to `limit` characters, appending suffix if cut.
+
+    The returned string never exceeds `limit` characters in total
+    (content + suffix).
+    """
+    if len(text) <= limit:
+        return text
+    return text[:max(0, limit - len(suffix))] + suffix
+
+
+def word_count(text):
+    """Count words, ignoring extra whitespace."""
+    return len(text.split(" "))
+EOF
+grep -n "_PUNCT" slugify.py
+python3 -m unittest test_slugify -v 2>&1
+echo "=== behavior check ===" && python3 -c "
+from slugify import slugify, truncate, word_count
+print('underscores:', repr(slugify('hello_world')), '(want hello-world)')
+print('punct      :', repr(slugify('Hello, World!')), '(want hello-world)')
+print('maxlen     :', repr(slugify('The Quick Brown', max_length=10)), '(want the-quick)')
+print('truncate   :', repr(truncate('abcdefghij', 8)), '(want abcde...) len=', len(truncate('abcdefghij', 8)))
+print('truncate eq:', repr(truncate('hi', 10)), '(want hi)')
+print('word_count :', word_count('one   two\tthree\nfour'), '(want 4)')
+"
+echo "=== other test files? ===" && find . -name "test_*.py" -o -name "*_test.py" | grep -v node_modules

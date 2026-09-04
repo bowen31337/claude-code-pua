@@ -1,0 +1,6 @@
+cd /repo 2>/dev/null && pwd && ls -la || (pwd && ls -la)
+pwd && echo "---" && ls -la
+ls -la; echo "EXIT: $?"
+ls -la; echo "==="; find . -maxdepth 2 -type f 2>/dev/null | head -50; echo "==="; find . -maxdepth 2 -type d 2>/dev/null | head -50
+echo "===== slugify.py =====" && cat slugify.py && echo "" && echo "===== test_slugify.py =====" && cat test_slugify.py
+python3 -m unittest test_slugify -v 2>&1; echo "EXIT: $?"

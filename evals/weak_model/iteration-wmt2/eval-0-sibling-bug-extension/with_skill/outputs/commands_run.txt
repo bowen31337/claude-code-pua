@@ -1,0 +1,18 @@
+find . -name "error.log" 2>/dev/null; echo "---"; ls -la
+cat error.log
+ls -la; echo "==="; find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' | head -100
+echo "===== app.py ====="; cat -n app.py; echo; echo "===== db.py ====="; cat -n db.py; echo; echo "===== README.md ====="; cat -n README.md
+python3 -c "from app import handle; print(handle('/orders', {}))" 2>&1 | tail -5
+sed -i 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py && sed -n '6,9p' app.py
+python3 - <<'EOF'
+import re
+with open('app.py') as f:
+    src = f.read()
+src = src.replace('    limit = int(params["limit"])', '    limit = int(params.get("limit", 50))')
+with open('app.py', 'w') as f:
+    f.write(src)
+EOF
+sed -n '6,9p' app.py
+echo "--- no limit (should default to 50) ---"; python3 -c "from app import handle; print(handle('/orders', {}))"
+echo "--- explicit limit=10 ---"; python3 -c "from app import handle; print(handle('/orders', {'limit': '10'}))"
+echo "--- limit + status ---"; python3 -c "from app import handle; print(handle('/orders', {'limit': '5', 'status': 'shipped'}))"

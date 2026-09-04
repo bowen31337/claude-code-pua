@@ -1,0 +1,20 @@
+pwd && ls -la
+find . -name "error.log" 2>/dev/null; echo "---"; find . -iname "*.log" 2>/dev/null | head -50
+cat error.log
+find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/venv/*' -not -path '*/__pycache__/*' | head -100
+cat app.py
+cat db.py
+cat README.md
+python3 -c "from app import handle; print(handle('/orders', {}))"
+python3 -c "from app import handle; print(handle('/orders', {'limit': '10'}))"
+cp app.py app.py.bak && sed -i '' 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py && sed -i '' 's/    page = int(params\["page"\])/    page = int(params.get("page", 0))/' app.py && sed -i '' 's/    days = int(params\["days"\])/    days = int(params.get("days", 7))/' app.py && cat app.py
+echo "== /orders with no params (the reported bug) =="; python3 -c "from app import handle; print(handle('/orders', {}))"
+echo "== /orders with limit=10 (regression check) =="; python3 -c "from app import handle; print(handle('/orders', {'limit': '10'}))"
+echo "== /orders with status filter =="; python3 -c "from app import handle; print(handle('/orders', {'status': 'shipped'}))"
+echo "== /users with no params (sibling) =="; python3 -c "from app import handle; print(handle('/users', {}))"
+echo "== /reports with no params (sibling) =="; python3 -c "from app import handle; print(handle('/reports', {}))"
+echo "== README documented command =="; python3 -c "from app import handle; print(handle('/orders', {}))"
+rm -f app.py.bak && ls -la
+ls -la
+ls -la; echo "exit: $?"
+test -f app.py.bak && echo "BACKUP STILL EXISTS" || echo "backup removed OK"; echo "---"; python3 -c "import app; print('import OK, ROUTES:', list(app.ROUTES))"

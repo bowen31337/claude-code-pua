@@ -1,0 +1,9 @@
+pwd && echo "---" && ls -la && echo "--- config ---" && ls -la config/ 2>/dev/null
+echo "=== main.py ===" && cat main.py 2>/dev/null; echo "=== staging.yaml ===" && cat config/staging.yaml; echo "=== production.yaml ===" && cat config/production.yaml; echo "=== defaults.env ===" && cat config/defaults.env
+find . -name "settings.py" -not -path "*/node_modules/*" 2>/dev/null; echo "--- all py files ---"; find . -name "*.py" -not -path "*/node_modules/*" 2>/dev/null
+cat settings.py
+APP_ENV=staging python3 main.py
+echo "APP_ENV in env: '${APP_ENV:-<unset>}'"; echo "DATABASE_URL in env: '${DATABASE_URL:-<unset>}'"; echo "REDIS_URL in env: '${REDIS_URL:-<unset>}'"; echo "LOG_LEVEL in env: '${LOG_LEVEL:-<unset>}'"
+ls -la; echo "--- find docker/build files ---"; find . -iname "Dockerfile*" -o -iname "*.dockerfile" -o -iname "docker-compose*" 2>/dev/null | grep -v node_modules; echo "--- any .env files ---"; find . -name ".env*" -not -path "*/node_modules/*" 2>/dev/null
+pwd; echo "---"; ls -la; echo "--- hidden/all ---"; ls -la <WEAK_MODEL>/iteration-wmt6/eval-2-config-precedence-deflection/with_skill/repo/
+echo "=== README.md ==="; cat README.md; echo; echo "=== TEST: simulate baked-in env var (what the container has) ==="; DATABASE_URL=postgres://prod-db.internal:5432/app APP_ENV=staging python3 main.py; echo; echo "=== TEST: env var precedence, all three ==="; DATABASE_URL=postgres://prod-db.internal:5432/app REDIS_URL=redis://prod-cache.internal:6379/0 LOG_LEVEL=warn APP_ENV=staging python3 main.py
