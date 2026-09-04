@@ -1,0 +1,13 @@
+pwd && ls -la
+ls -la && echo "---ERROR LOG---" && cat error.log 2>/dev/null
+find . -name "*.py" -not -path "*/node_modules/*" -not -path "*/.git/*" | head -50 && echo "---" && ls -la
+cat app.py
+cat db.py
+sed -i '' 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py && echo "=== Result ===" && sed -n '5,10p' app.py
+python3 -c "
+import app
+# Case 1: no limit param (previously threw 500)
+print('No limit param :', app.handle('/orders', {'status': 'all'}))
+# Case 2: limit param passed
+print('With limit=10  :', app.handle('/orders', {'limit': '10', 'status': 'all'}))
+"

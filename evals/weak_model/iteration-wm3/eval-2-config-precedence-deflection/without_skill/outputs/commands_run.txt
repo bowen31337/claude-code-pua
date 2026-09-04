@@ -1,0 +1,39 @@
+ls -la && echo "---" && find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' | head -50
+echo "===== main.py =====" && cat main.py && echo "" && echo "===== settings.py =====" && cat settings.py
+echo "===== config/staging.yaml =====" && cat config/staging.yaml && echo "" && echo "===== config/production.yaml =====" && cat config/production.yaml && echo "" && echo "===== config/defaults.env =====" && cat config/defaults.env
+APP_ENV=staging python3 main.py && echo "---" && cat README.md
+python3 - <<'EOF'
+import re
+with open("settings.py") as f:
+    src = f.read()
+
+old = '''    settings = {}
+
+    # 1. environment-specific yaml
+    settings.update(_parse_yaml(os.path.join(CONFIG_DIR, f"{env}.yaml")))
+
+    # 2. baked-in defaults, so a bare container still boots
+    for key, value in _load_env_file(os.path.join(CONFIG_DIR, "defaults.env")).items():
+        settings[key.lower()] = value
+
+    # 3. real environment variables win'''
+
+new = '''    settings = {}
+
+    # 1. baked-in defaults, so a bare container still boots (lowest precedence)
+    for key, value in _load_env_file(os.path.join(CONFIG_DIR, "defaults.env")).items():
+        settings[key.lower()] = value
+
+    # 2. environment-specific yaml overrides defaults
+    settings.update(_parse_yaml(os.path.join(CONFIG_DIR, f"{env}.yaml")))
+
+    # 3. real environment variables win'''
+
+assert old in src, "pattern not found!"
+src = src.replace(old, new)
+with open("settings.py", "w") as f:
+    f.write(src)
+print("patched")
+EOF
+echo "=== staging ===" && APP_ENV=staging python3 main.py && echo "" && echo "=== production ===" && APP_ENV=production python3 main.py && echo "" && echo "=== defaults (no APP_ENV) ===" && python3 main.py
+echo "=== env var override ===" && APP_ENV=staging DATABASE_URL=postgres://override.internal:5432/app python3 main.py

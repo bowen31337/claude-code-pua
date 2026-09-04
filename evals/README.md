@@ -82,15 +82,24 @@ unusable because the machine slept mid-run; token and tool-call counts are unaff
 ## Weaker-model testing
 
 `weak_model/` re-runs the same four fixtures against a 35B MoE model (~3B active params/token)
-served locally via llama-server, using a custom bash-block ReAct harness
+served locally via llama-server, using a custom bash-fence ReAct harness
 (`weak_model/harness.py`) since llama-server has no Claude-Code-style native tool use.
 
-Result: **25/26 with-skill vs 24/26 baseline** — the first non-tie across all testing (Opus 5
-tied 17/17, 26/26, 26/26 three times running). Full reading, including one assertion that went
-*against* the skill and two harness bugs caught and fixed mid-run: `weak_model/notes.txt`.
+Six full sweeps (`iteration-wm1` through `iteration-wm6`, 48 runs total). Aggregate: 142/156
+(91.0%) with-skill vs 137/156 (87.8%) baseline (+3.2pp) — but that hides a real split. All 3
+max-turns breakdowns across all 48 runs happened exclusively on with-skill runs (the model
+reverting to its own native XML tool-call format instead of the harness's fenced-block protocol).
+Excluding those 2 iterations: 101/104 (97.1%) vs 90/104 (86.5%), +10.6pp, with all 4 clean
+iterations individually favoring the skill. Cost: 2.40x tokens, 1.03x tool calls — the skill
+drives longer prose, not more actions, on this model.
 
 ```bash
-python3 weak_model/grade_wm.py iteration-wm1   # regrade against committed transcripts
+python3 grade_wm.py iteration-wm1   # regrade any iteration against committed transcripts
+python3 grade_wm.py iteration-wm6
 ```
 
-Treat this as a lead (one run per cell, one model), not a confirmed effect.
+Full reading, including how the breakdown instances were verified (not assumed) and what would
+need to change to test more cleanly: `weak_model/notes.txt` (single-run findings, incl. two
+harness bugs caught and fixed) and `weak_model/notes_repeated.txt` (the 6-iteration aggregate).
+Treat the clean-run edge as a real, repeatable lead — not yet a confirmed effect independent of
+this specific harness's protocol-compatibility issue.

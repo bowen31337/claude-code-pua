@@ -1,0 +1,91 @@
+pwd && ls -la
+git log --oneline -10 && echo "---BRANCH---" && git branch -a && echo "---STATUS---" && git status
+ls -la && echo "===" && find . -name "*.py" -not -path "*/node_modules/*" | head -50
+echo "===== money.py =====" && cat money.py && echo "===== rates.py =====" && cat rates.py && echo "===== ledger.py =====" && cat ledger.py
+echo "===== test_money.py =====" && cat test_money.py && echo "===== test_conversion.py =====" && cat test_conversion.py && echo "===== test_ledger.py =====" && cat test_ledger.py
+echo "===== recent fix commit =====" && git show --stat HEAD && echo "===== diff =====" && git show HEAD
+echo "=== git root ===" && git rev-parse --show-toplevel && echo "=== is test_conversion.py fixed here? ===" && grep -n "setUp\|tearDown\|reset_rates" test_conversion.py || echo "NO setUp/tearDown/reset in test_conversion.py" && echo "=== git log for this repo ===" && git log --oneline -5
+echo "=== run full suite (default order) ===" && python -m unittest discover -v 2>&1 | tail -30
+echo "=== isolated test_ledger (should pass) ===" && python -m unittest test_ledger -v 2>&1 | tail -8
+echo ""
+echo "=== prove the leak: run conversion then ledger in one process ===" && python -c "
+import test_conversion, test_ledger, rates
+from decimal import Decimal
+# simulate unittest running test_conversion first (alphabetical), then test_ledger
+tc = test_conversion.TestConversion()
+tc.test_set_rate_accepts_high_precision()
+print('EUR rate now:', rates.get_rate('EUR'))
+tl = test_ledger.TestLedger()
+tl.test_multi_currency_total()
+" 2>&1 | tail -12
+echo "=== repo tree (this dir) ===" && ls -la && echo "=== SKILL.md? ===" && (cat SKILL.md 2>/dev/null | head -60 || echo "no SKILL.md here") && echo "=== CI config ===" && find . -maxdepth 2 \( -name "*.yml" -o -name "*.yaml" -o -name "Makefile" -o -name "conftest.py" -o -name "pytest.ini" -o -name "tox.ini" \) 2>/dev/null | grep -v node_modules
+pwd && echo "===" && ls -la <WEAK_MODEL>/iteration-wm3/eval-3-flaky-total-state-pollution/with_skill/repo/
+echo "=== README ===" && cat README.md
+echo "=== all set_rate / reset_rates usages across the whole eval tree ===" && grep -rn "set_rate\|reset_rates\|_RATE_CACHE" --include="*.py" <WEAK_MODEL>/iteration-wm3/eval-3-flaky-total-state-pollution/
+cat > test_conversion.py <<'EOF'
+import unittest
+from decimal import Decimal
+
+import rates
+
+
+class TestConversion(unittest.TestCase):
+    def setUp(self):
+        # Conversion tests may override the shared FX rate table; make sure
+        # every test starts from the published rates and leaves them intact
+        # for whatever runs next (e.g. the ledger suite).
+        rates.reset_rates()
+
+    def tearDown(self):
+        # Restore the published table so a runtime override (set_rate) in one
+        # test doesn't leak into another test via the module-level cache.
+        rates.reset_rates()
+
+    def test_published_rate(self):
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.10"))
+
+    def test_to_usd(self):
+        self.assertEqual(rates.to_usd(Decimal("100"), "USD"), Decimal("100"))
+
+    def test_set_rate_accepts_high_precision(self):
+        # The FX job pushes 4-dp rates; make sure they survive round-trip
+        # without being truncated to 2 places.
+        rates.set_rate("EUR", "1.1001")
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.1001"))
+EOF
+echo "=== written ===" && cat test_conversion.py
+echo "=== full suite, default order ===" && python -m unittest discover -v 2>&1 | tail -6
+echo ""
+echo "=== full suite, reverse order (-v) ===" && python -m unittest discover -v 2>&1 | grep -E "multi_currency|OK|FAIL|Ran"
+echo ""
+echo "=== prove no leak now: conversion then ledger in one process ===" && python -c "
+import test_conversion, test_ledger, rates
+from decimal import Decimal
+tc = test_conversion.TestConversion()
+tc.setUp(); tc.test_set_rate_accepts_high_precision(); tc.tearDown()
+print('EUR rate after conversion teardown:', rates.get_rate('EUR'))
+tl = test_ledger.TestLedger()
+tl.test_multi_currency_total()
+print('ledger test passed, total clean')
+"
+echo "=== isolated: each test file alone ===" 
+for f in test_money test_conversion test_ledger; do echo "--- $f ---"; python -m unittest $f 2>&1 | tail -3; done
+echo ""
+echo "=== sanity: is money.round_money actually correct? (user's worry) ==="
+python -c "
+from money import round_money
+from decimal import Decimal
+for v in ['1.234','1.235','1.236','1600.10','1600.005']:
+    print(v, '->', round_money(Decimal(v)))
+"
+cd <WEAK_MODEL>/iteration-wm3/eval-3-flaky-total-state-pollution/with_skill/repo
+git add test_conversion.py
+git -c user.name="agent" -c user.email="agent@local" commit -q -m "Fix test_multi_currency_total: reset FX rate cache so conversion tests don't pollute the ledger suite
+
+test_conversion overrides the shared module-level EUR rate (set_rate('EUR','1.1001'))
+and never restores it. Because _RATE_CACHE is a process-wide global, that override
+leaked into test_ledger when tests ran alphabetically, converting 1000 EUR to 1100.10
+instead of 1100.00 and the total to 1600.10 (10c high). This is deterministic
+test-order state pollution, not flakiness: it fails every full-suite run and passes
+every isolated run. Add setUp/tearDown to reset the rate table." && echo "=== committed ===" && git log --oneline -1
+echo "=== clean-state full run ===" && python -m unittest discover 2>&1 | tail -4 && echo "" && echo "=== git status ===" && git status -s

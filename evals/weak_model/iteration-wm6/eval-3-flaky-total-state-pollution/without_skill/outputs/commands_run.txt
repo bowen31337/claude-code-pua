@@ -1,0 +1,60 @@
+ls -la && echo "---" && find . -type f -name "*.py" | head -50
+</parameter>
+</invoke>
+ls -la
+ls -la /root
+pwd && ls -la
+ls -la && echo "=== money.py ===" && cat money.py
+cat money.py
+echo "=== rates.py ===" && cat rates.py && echo "=== ledger.py ===" && cat ledger.py
+echo "=== test_money.py ===" && cat test_money.py && echo "=== test_ledger.py ===" && cat test_ledger.py && echo "=== test_conversion.py ===" && cat test_conversion.py
+python -m pytest test_ledger.py -q 2>&1 | tail -20
+cat money.py
+</parameter>
+</invoke>
+python -m pytest -q 2>&1 | tail -30
+python -m pytest test_conversion.py test_ledger.py -q 2>&1 | tail -15
+python -c "
+import rates
+print('EUR before:', rates.get_rate('EUR'))
+rates.set_rate('EUR', '1.1001')
+print('EUR after set_rate:', rates.get_rate('EUR'))
+print('EUR*1000 =', rates.to_usd(__import__('decimal').Decimal('1000'), 'EUR'))
+print('Expected 1600.00, got', __import__('decimal').Decimal('500') + rates.to_usd(__import__('decimal').Decimal('1000'), 'EUR'))
+"
+cat > test_conversion.py <<'EOF'
+import unittest
+from decimal import Decimal
+
+import rates
+
+
+class TestConversion(unittest.TestCase):
+    def setUp(self):
+        # Each test must start from the published rate table so runtime
+        # overrides never leak into other test files.
+        rates.reset_rates()
+
+    def tearDown(self):
+        # Restore the published table after every test so a set_rate()
+        # override here can't corrupt global state for later suites.
+        rates.reset_rates()
+
+    def test_published_rate(self):
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.10"))
+
+    def test_to_usd(self):
+        self.assertEqual(rates.to_usd(Decimal("100"), "USD"), Decimal("100"))
+
+    def test_set_rate_accepts_high_precision(self):
+        # The FX job pushes 4-dp rates; make sure they survive round-trip
+        # without being truncated to 2 places.
+        rates.set_rate("EUR", "1.1001")
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.1001"))
+EOF
+echo "written"
+python -m pytest -q 2>&1 | tail -8 && echo "=== reverse order ===" && python -m pytest -q -p no:randomly test_conversion.py test_ledger.py 2>&1 | tail -5 && echo "=== ledger alone ===" && python -m pytest test_ledger.py -q 2>&1 | tail -5
+</parameter>
+</invoke>
+python -m pytest test_conversion.py test_ledger.py test_money.py test_conversion.py -q 2>&1 | grep -E "passed|failed"
+python -m pytest -q 2>&1 | grep -E "passed|failed"

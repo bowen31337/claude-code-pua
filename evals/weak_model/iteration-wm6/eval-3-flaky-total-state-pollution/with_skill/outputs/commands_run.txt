@@ -1,0 +1,58 @@
+pwd && ls -la
+find . -type f -name "*.py" | head -50 && echo "---" && grep -rl "test_multi_currency_total" . 2>/dev/null
+cat test_ledger.py
+cat money.py && echo "=====LEDGER=====" && cat ledger.py && echo "=====RATES=====" && cat rates.py
+cat test_conversion.py && echo "=====MONEY TEST=====" && cat test_money.py
+echo "=== test_ledger.py ALONE ===" && python -m pytest test_ledger.py -v 2>&1 | tail -20
+echo "=== FULL SUITE (default order) ===" && python -m pytest 2>&1 | tail -25
+echo "=== run twice to check determinism ===" && python -m pytest test_ledger.py test_conversion.py 2>&1 | tail -3 && echo "---" && python -m pytest test_conversion.py test_ledger.py 2>&1 | tail -3
+python -c "
+import rates
+from ledger import Ledger
+# Simulate test_conversion running first (it sets EUR to 1.1001 and never resets)
+rates.set_rate('EUR', '1.1001')
+print('EUR rate after poll:', rates.get_rate('EUR'))
+print('total:', Ledger().add('500.00','USD').add('1000.00','EUR').total_usd())
+"
+echo "=== who mutates the cache? grep set_rate / reset_rates ===" && grep -rn "set_rate\|reset_rates\|_RATE_CACHE" . --include=*.py && echo "=== conftest present? ===" && ls conftest.py pytest.ini tox.ini setup.cfg 2>/dev/null; echo "(none if blank)" && echo "=== does round_money actually do HALF_UP? ===" && python -c "
+from money import round_money
+from decimal import Decimal
+for v in ['1.235','1.245','1.255','2.675']:
+    print(v, '->', round_money(Decimal(v)))
+"
+cat > conftest.py <<'EOF'
+import pytest
+
+import rates
+
+
+@pytest.fixture(autouse=True)
+def _reset_fx_rates():
+    """Isolate tests from the shared FX rate cache.
+
+    ``rates`` keeps its published rates in a module-level dict that
+    ``set_rate`` mutates in place. A test that overrides a rate and never
+    restores it would otherwise leak into later tests and change their
+    conversions. Reset before and after every test so each one sees the
+    published table regardless of ordering.
+    """
+    rates.reset_rates()
+    yield
+    rates.reset_rates()
+EOF
+echo "=== full suite, default order ===" && python -m pytest 2>&1 | tail -4
+echo "=== full suite, reversed order ===" && python -m pytest -rN --reverse 2>&1 | tail -4 || python -m pytest test_money.py test_ledger.py test_conversion.py 2>&1 | tail -4
+```
+
+The `--reverse` plugin likely isn't installed, so let me also verify the previously-failing order explicitly.
+
+```bash
+echo "=== previously-failing order: conversion then ledger ===" && python -m pytest test_conversion.py test_ledger.py 2>&1 | tail -4
+echo "=== ledger alone ===" && python -m pytest test_ledger.py 2>&1 | tail -3
+echo "=== clean full-suite run (3x) ===" && for i in 1 2 3; do python -m pytest -q 2>&1 | tail -1; done
+echo "=== confirm round_money latent bug (NOT the CI failure) ===" && python -c "
+from money import round_money
+from decimal import Decimal
+for v in ['1.235','1.245','1.255']:
+    print(v, '->', round_money(Decimal(v)), '(half-up should be', (Decimal(v).quantize(Decimal('0.01'), rounding='ROUND_HALF_UP')), ')')
+"

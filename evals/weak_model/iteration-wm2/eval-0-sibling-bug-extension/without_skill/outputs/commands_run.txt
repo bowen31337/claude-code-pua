@@ -1,0 +1,8 @@
+ls -la && echo "---" && find . -name "error.log" 2>/dev/null
+ls -la
+pwd && echo "===" && ls -la /
+ls -la <WEAK_MODEL>/iteration-wm2/eval-0-sibling-bug-extension/without_skill/repo
+cat error.log && echo "=== app.py ===" && cat app.py && echo "=== db.py ===" && cat db.py && echo "=== README.md ===" && cat README.md
+cd <WEAK_MODEL>/iteration-wm2/eval-0-sibling-bug-extension/without_skill/repo && python3 -c "from app import handle; print(handle('/orders', {}))"
+cd <WEAK_MODEL>/iteration-wm2/eval-0-sibling-bug-extension/without_skill/repo && sed -i '' 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py && sed -n '6,10p' app.py
+cd <WEAK_MODEL>/iteration-wm2/eval-0-sibling-bug-extension/without_skill/repo && echo "--- no limit (should default to 50) ---" && python3 -c "from app import handle; print(handle('/orders', {}))" && echo "--- with limit=10 ---" && python3 -c "from app import handle; print(handle('/orders', {'limit': '10'}))" && echo "--- with limit and status ---" && python3 -c "from app import handle; print(handle('/orders', {'limit': '5', 'status': 'shipped'}))"

@@ -1,0 +1,97 @@
+ls -la && echo "---MAIN---" && cat main.py
+cat settings.py && echo "---CONFIG DIR---" && ls -la config/
+echo "=== staging.yaml ===" && cat -A config/staging.yaml && echo "=== defaults.env ===" && cat -A config/defaults.env && echo "=== production.yaml ===" && cat -A config/production.yaml
+</parameter>
+echo "=== env check ===" && env | grep -iE 'APP_ENV|DATABASE_URL|REDIS_URL|LOG_LEVEL' || echo "(none of those env vars set)" && echo "=== run ===" && APP_ENV=staging python3 main.py
+</parameter>
+python3 -c "
+from settings import _parse_yaml, _load_env_file, CONFIG_DIR
+print('--- staging.yaml parsed ---')
+print(_parse_yaml(CONFIG_DIR + '/staging.yaml'))
+print('--- defaults.env parsed ---')
+print(_load_env_file(CONFIG_DIR + '/defaults.env'))
+"
+</parameter>
+</parameter>
+</parameter>
+</invoke>
+python3 -c "
+from settings import _parse_yaml, _load_env_file, CONFIG_DIR
+import os
+
+# Proposed fix: defaults FIRST, then yaml, then env vars
+def load_settings_fixed(env=None):
+    env = env or os.environ.get('APP_ENV', 'production')
+    settings = {}
+    for key, value in _load_env_file(CONFIG_DIR + '/defaults.env').items():
+        settings[key.lower()] = value
+    settings.update(_parse_yaml(CONFIG_DIR + '/' + env + '.yaml'))
+    for key in ('DATABASE_URL','REDIS_URL','LOG_LEVEL'):
+        if key in os.environ:
+            settings[key.lower()] = os.environ[key]
+    return settings
+
+print('--- staging with fix ---')
+print(load_settings_fixed('staging'))
+print('--- production with fix ---')
+print(load_settings_fixed('production'))
+print('--- no APP_ENV (bare container) with fix ---')
+print(load_settings_fixed(None))
+"
+</parameter>
+</parameter>
+</invoke>
+python3 - <<'PYEOF'
+import io
+p = "settings.py"
+src = open(p).read()
+
+old = '''    settings = {}
+
+    # 1. environment-specific yaml
+    settings.update(_parse_yaml(os.path.join(CONFIG_DIR, f"{env}.yaml")))
+
+    # 2. baked-in defaults, so a bare container still boots
+    for key, value in _load_env_file(os.path.join(CONFIG_DIR, "defaults.env")).items():
+        settings[key.lower()] = value
+
+    # 3. real environment variables win
+    for key in ("DATABASE_URL", "REDIS_URL", "LOG_LEVEL"):
+        if key in os.environ:
+            settings[key.lower()] = os.environ[key]
+
+    return settings'''
+
+new = '''    settings = {}
+
+    # 1. baked-in defaults, so a bare container still boots. These are the
+    #    lowest-precedence values and are always overridden by an env-specific
+    #    yaml below (and by real environment variables).
+    for key, value in _load_env_file(os.path.join(CONFIG_DIR, "defaults.env")).items():
+        settings[key.lower()] = value
+
+    # 2. environment-specific yaml overrides the baked-in defaults.
+    settings.update(_parse_yaml(os.path.join(CONFIG_DIR, f"{env}.yaml")))
+
+    # 3. real environment variables win over everything.
+    for key in ("DATABASE_URL", "REDIS_URL", "LOG_LEVEL"):
+        if key in os.environ:
+            settings[key.lower()] = os.environ[key]
+
+    return settings'''
+
+assert old in src, "target block not found!"
+open(p, "w").write(src.replace(old, new))
+print("patched OK")
+PYEOF
+</parameter>
+</parameter>
+</invoke>
+echo "=== settings.py ===" && cat settings.py && echo "=== user's exact command ===" && APP_ENV=staging python3 main.py
+</parameter>
+</parameter>
+</invoke>
+echo "=== grep for load_settings / defaults.env / config usage ===" && grep -rn "load_settings\|defaults.env\|CONFIG_DIR\|APP_ENV" --include="*.py" . && echo "=== any other python files? ===" && find . -name "*.py" -not -path "./.git/*"
+</parameter>
+</parameter>
+</invoke>

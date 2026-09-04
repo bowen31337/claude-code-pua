@@ -1,0 +1,1 @@
+test suite is red, 3 failures. can you get it green? python3 -m unittest test_slugify

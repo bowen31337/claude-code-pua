@@ -1,0 +1,65 @@
+pwd && ls -la
+git log --oneline -10 && echo "---" && find . -type f -name "*.py" | grep -i -E "money|currency|test_multi" | head -50
+cat money.py && echo "=====TEST=====" && cat test_money.py
+grep -rn "test_multi_currency_total" . --include="*.py" 2>/dev/null; echo "---all test files---"; find . -name "test_*.py" -o -name "*_test.py" 2>/dev/null | grep -v node_modules
+cat test_ledger.py && echo "=====CONVERSION=====" && cat test_conversion.py
+cat ledger.py && echo "=====RATES=====" && cat rates.py
+ls -la && echo "---python---" && python3 --version && echo "---run test_ledger alone---" && python3 -m pytest test_ledger.py -q 2>&1 | tail -20
+python3 -m pytest -q 2>&1 | tail -30
+echo "=== run conversion tests BEFORE ledger (alphabetical order) ===" && python3 -m pytest test_conversion.py test_ledger.py -q 2>&1 | tail -8
+echo ""
+echo "=== run ledger FIRST, then conversion ===" && python3 -m pytest test_ledger.py test_conversion.py -q 2>&1 | tail -8
+cat > test_conversion.py <<'EOF'
+import unittest
+from decimal import Decimal
+
+import rates
+
+
+class TestConversion(unittest.TestCase):
+    def setUp(self):
+        # Conversion tests may override the shared FX rate table; make sure
+        # every test starts from the published rates and leaves them intact
+        # for whatever runs next (e.g. the ledger suite).
+        rates.reset_rates()
+
+    def tearDown(self):
+        # Restore the published table so a runtime override (set_rate) in one
+        # test doesn't leak into another test via the module-level cache.
+        rates.reset_rates()
+
+    def test_published_rate(self):
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.10"))
+
+    def test_to_usd(self):
+        self.assertEqual(rates.to_usd(Decimal("100"), "USD"), Decimal("100"))
+
+    def test_set_rate_accepts_high_precision(self):
+        # The FX job pushes 4-dp rates; make sure they survive round-trip
+        # without being truncated to 2 places.
+        rates.set_rate("EUR", "1.1001")
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.1001"))
+EOF
+echo "written"
+```
+
+Now let me verify the fix works both in isolation and in the full suite (and in both orderings).
+
+```bash
+echo "=== full suite ===" && python3 -m pytest -q 2>&1 | tail -4
+echo "=== ledger first, then conversion ===" && python3 -m pytest test_ledger.py test_conversion.py -q 2>&1 | tail -4
+echo "=== conversion first, then ledger ===" && python3 -m pytest test_conversion.py test_ledger.py -q 2>&1 | tail -4
+echo "=== conversion alone ===" && python3 -m pytest test_conversion.py -q 2>&1 | tail -4
+echo "=== ledger alone ===" && python3 -m pytest test_ledger.py -q 2>&1 | tail -4
+git add test_conversion.py && git commit -q -m "Fix test_multi_currency_total: reset FX rate cache after conversion tests
+
+The conversion suite overrides the shared module-level EUR rate
+(set_rate('EUR', '1.1001')) and never restores it. Because the FX
+cache is a process-wide global, that override leaked into the ledger
+suite when tests ran in alphabetical order, making 1000 EUR convert
+to 1100.10 instead of 1100.00 and the total come out 10c high.
+
+This is deterministic test-order state pollution, not a flaky test:
+it fails every full-suite run and passes every isolated run. Add
+setUp/tearDown in the conversion tests to reset the rate table so a
+runtime override can't leak into other tests." && git log --oneline -1

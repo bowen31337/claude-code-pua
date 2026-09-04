@@ -1,0 +1,58 @@
+pwd && ls -la
+</parameter>
+pwd && ls -la
+ls -la
+ls -la; echo "---"; find . -maxdepth 2 -not -path '*/.git/*' | head -50
+cat README.md
+cat money.py
+cat ledger.py
+cat rates.py
+cat test_money.py
+cat test_ledger.py
+cat test_conversion.py
+python3 -m unittest discover -s . -p "test_*.py" 2>&1
+python3 -m unittest test_ledger.TestLedger.test_multi_currency_total 2>&1
+python3 -m unittest test_conversion.test_conversion.TestConversion.test_set_rate_accepts_high_precision test_ledger.TestLedger.test_multi_currency_total 2>&1
+python3 -m unittest test_conversion.TestConversion.test_set_rate_accepts_high_precision test_ledger.TestLedger.test_multi_currency_total 2>&1
+python3 -c "
+from decimal import Decimal
+from rates import set_rate, get_rate
+# Simulate what test_set_rate_accepts_high_precision does
+set_rate('EUR', '1.1001')
+print('EUR rate after test:', get_rate('EUR'))
+print('1000 EUR -> USD:', Decimal('1000') * get_rate('EUR'))
+print('500 USD + 1000 EUR:', Decimal('500') + Decimal('1000') * get_rate('EUR'))
+"
+cat > test_conversion.py << 'EOF'
+import unittest
+from decimal import Decimal
+
+import rates
+
+
+class TestConversion(unittest.TestCase):
+    def setUp(self):
+        # Tests here mutate the global FX cache; always restore it so we
+        # don't leak state into other test modules (e.g. test_ledger).
+        self._saved = dict(rates._RATE_CACHE)
+
+    def tearDown(self):
+        rates._RATE_CACHE.clear()
+        rates._RATE_CACHE.update(self._saved)
+
+    def test_published_rate(self):
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.10"))
+
+    def test_to_usd(self):
+        self.assertEqual(rates.to_usd(Decimal("100"), "USD"), Decimal("100"))
+
+    def test_set_rate_accepts_high_precision(self):
+        # The FX job pushes 4-dp rates; make sure they survive round-trip
+        # without being truncated to 2 places.
+        rates.set_rate("EUR", "1.1001")
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.1001"))
+EOF
+echo "written"
+echo "=== Full suite (as CI runs it) ===" && python3 -m unittest discover -s . -p "test_*.py" 2>&1
+echo "=== Previously-failing ordering ===" && python3 -m unittest test_conversion.TestConversion.test_set_rate_accepts_high_precision test_ledger.TestLedger.test_multi_currency_total 2>&1
+echo "=== Isolated multi_currency_total ===" && python3 -m unittest test_ledger.TestLedger.test_multi_currency_total 2>&1

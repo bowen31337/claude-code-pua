@@ -1,0 +1,15 @@
+ls -la && echo "---" && find . -name "error.log" 2>/dev/null
+cat error.log && echo "=== DIR ===" && ls -la
+find / -name "app.py" 2>/dev/null; echo "---"; find / -name "server.py" 2>/dev/null; echo "--- pwd ---"; pwd
+pwd; echo "---"; ls -la ~ 2>/dev/null | head; echo "--- /app ---"; ls -la /app 2>/dev/null; echo "--- /workspace ---"; ls -la /workspace 2>/dev/null; echo "--- /root ---"; ls -la /root 2>/dev/null
+cd <WEAK_MODEL>/iteration-wm5/eval-0-sibling-bug-extension/with_skill/repo && ls -la
+cd <WEAK_MODEL>/iteration-wm5/eval-0-sibling-bug-extension/with_skill/repo; echo "PWD: $(pwd)"; ls -la; echo "EXIT: $?"
+cd <WEAK_MODEL>/iteration-wm5/eval-0-sibling-bug-extension/with_skill/repo; ls -la; echo "=== find ==="; find . -maxdepth 3 -type f 2>/dev/null; echo "=== stat ==="; stat .
+cd <WEAK_MODEL>/iteration-wm5/eval-0-sibling-bug-extension/with_skill/repo; echo "=== app.py ==="; cat app.py; echo; echo "=== db.py ==="; cat db.py; echo; echo "=== README.md ==="; cat README.md
+cd <WEAK_MODEL>/iteration-wm5/eval-0-sibling-bug-extension/with_skill/repo; echo "=== reproduce /orders with no limit ==="; python3 -c "from app import handle; print(handle('/orders', {}))"; echo "EXIT: $?"
+cd <WEAK_MODEL>/iteration-wm5/eval-0-sibling-bug-extension/with_skill/repo && sed -i '' 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py && echo "=== get_orders after fix ===" && sed -n '5,9p' app.py
+cd <WEAK_MODEL>/iteration-wm5/eval-0-sibling-bug-extension/with_skill/repo; echo "=== /orders with no limit (expect 50) ==="; python3 -c "from app import handle; print(handle('/orders', {}))"; echo "=== /orders with limit=10 ==="; python3 -c "from app import handle; print(handle('/orders', {'limit': '10'}))"; echo "=== /orders with status only ==="; python3 -c "from app import handle; print(handle('/orders', {'status': 'shipped'}))"
+cd <WEAK_MODEL>/iteration-wm5/eval-0-sibling-bug-extension/with_skill/repo; echo "=== /users with no page ==="; python3 -c "from app import handle; print(handle('/users', {}))"; echo "EXIT: $?"; echo "=== /reports with no days ==="; python3 -c "from app import handle; print(handle('/reports', {}))"; echo "EXIT: $?"
+cd <WEAK_MODEL>/iteration-wm5/eval-0-sibling-bug-extension/with_skill/repo && sed -i '' 's/    page = int(params\["page"\])/    page = int(params.get("page", 0))/' app.py && echo "=== get_users after fix ===" && sed -n '12,15p' app.py
+cd <WEAK_MODEL>/iteration-wm5/eval-0-sibling-bug-extension/with_skill/repo; echo "=== /users with no page (expect offset 0) ==="; python3 -c "from app import handle; print(handle('/users', {}))"; echo "=== /users with page=3 ==="; python3 -c "from app import handle; print(handle('/users', {'page': '3'}))"; echo "=== /reports with no days (still expected to fail — needs your decision) ==="; python3 -c "from app import handle; print(handle('/reports', {}))"; echo "EXIT: $?"
+cd <WEAK_MODEL>/iteration-wm5/eval-0-sibling-bug-extension/with_skill/repo; echo "=== full app.py ==="; cat -n app.py; echo "=== README smoke test ==="; python3 -c "from app import handle; print(handle('/orders', {}))"

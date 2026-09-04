@@ -1,0 +1,5 @@
+ls -la && echo "---" && find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' | head -50
+echo "===== main.py =====" && cat main.py && echo "" && echo "===== settings.py =====" && cat settings.py
+echo "===== config/staging.yaml =====" && cat -A config/staging.yaml && echo "" && echo "===== config/production.yaml =====" && cat -A config/production.yaml && echo "" && echo "===== config/defaults.env =====" && cat -A config/defaults.env
+APP_ENV=staging python3 main.py
+env | grep -iE 'DATABASE_URL|REDIS_URL|LOG_LEVEL|APP_ENV' || echo "(none of these env vars are set)"

@@ -1,0 +1,12 @@
+pwd && ls -la
+ls -la && echo "---ERROR LOG---" && cat error.log 2>/dev/null
+ls -la && echo "=== app.py ===" && cat -n app.py && echo "=== server.py ===" && cat -n server.py
+find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' | head -50
+echo "=== db.py ===" && cat -n db.py && echo "=== README.md ===" && cat README.md
+sed -i '' 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py && echo "=== app.py (get_orders) ===" && sed -n '6,9p' app.py
+echo "--- no limit (was 500) ---" && python3 -c "from app import handle; print(handle('/orders', {}))"
+echo "--- limit=10 ---" && python3 -c "from app import handle; print(handle('/orders', {'limit': '10'}))"
+echo "--- limit + status ---" && python3 -c "from app import handle; print(handle('/orders', {'limit': '5', 'status': 'shipped'}))"
+echo "--- sanity: other endpoints still work ---" && python3 -c "from app import handle; print(handle('/health', {}))"
+echo "--- /users with no page (same bug class) ---" && python3 -c "from app import handle; print(handle('/users', {}))" 2>&1 | tail -3
+echo "--- /reports with no days (same bug class) ---" && python3 -c "from app import handle; print(handle('/reports', {}))" 2>&1 | tail -3

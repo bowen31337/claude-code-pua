@@ -1,0 +1,3 @@
+Fixed the `/orders` 500 error. The problem was on line 7 of `app.py`: `limit = int(params["limit"])` raised a `KeyError` whenever the `?limit` query param wasn't supplied. I changed it to `limit = int(params.get("limit", 50))`, so the limit now defaults to 50 when not passed, and still respects an explicit value like `?limit=10`.
+
+The other routes (`/users`, `/reports`) have the same latent `KeyError` issue if `page`/`days` are ever omitted — let me know if you'd like me to harden those too.

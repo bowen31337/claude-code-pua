@@ -1,0 +1,12 @@
+pwd && ls -la
+cat error.log 2>/dev/null | head -100
+cat app.py
+ls -la && echo "---DB---" && cat db.py && echo "---SERVER---" && cat server.py
+ls -la
+pwd && echo "---" && ls -la && echo "---find---" && find . -type f -not -path '*/\.git/*' 2>/dev/null | head -50
+cat README.md && echo "---TESTS---" && find . -name "*test*" -o -name "*spec*" 2>/dev/null
+python3 -c "from app import handle; print(handle('/orders', {}))"
+sed -i '' 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py && sed -n '5,10p' app.py
+echo "=== default (no limit) ===" && python3 -c "from app import handle; print(handle('/orders', {}))" && echo "=== explicit limit ===" && python3 -c "from app import handle; print(handle('/orders', {'limit': '10'}))" && echo "=== status + limit ===" && python3 -c "from app import handle; print(handle('/orders', {'status': 'shipped', 'limit': '5'}))"
+echo "=== /users (no page) ===" && python3 -c "from app import handle; print(handle('/users', {}))" 2>&1 | tail -3
+echo "=== /reports (no days) ===" && python3 -c "from app import handle; print(handle('/reports', {}))" 2>&1 | tail -3

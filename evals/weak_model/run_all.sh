@@ -1,8 +1,11 @@
 #!/bin/bash
+# Usage: ./run_all.sh <iteration-name> <base-url>
+#   e.g. ./run_all.sh iteration-wm2 http://<your-llama-server-host>:8080
 set -e
-cd <WEAK_MODEL>
-W=iteration-wm1
-BASE=http://<your-llama-server-host>:8080
+cd "$(dirname "$0")"
+
+W="${1:?usage: run_all.sh <iteration-name> <base-url>}"
+BASE="${2:?usage: run_all.sh <iteration-name> <base-url>}"
 
 for e in "0:sibling-bug-extension" "1:red-suite-evidence" "2:config-precedence-deflection" "3:flaky-total-state-pollution"; do
   id="${e%%:*}"; name="${e#*:}"
@@ -17,4 +20,4 @@ for e in "0:sibling-bug-extension" "1:red-suite-evidence" "2:config-precedence-d
     echo "=== $(date '+%H:%M:%S') finished eval-$id-$name/$cfg ==="
   done
 done
-echo "ALL_WEAK_MODEL_RUNS_DONE"
+echo "ALL_WEAK_MODEL_RUNS_DONE: $W"

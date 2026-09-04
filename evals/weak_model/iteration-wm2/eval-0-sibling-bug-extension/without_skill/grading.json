@@ -1,0 +1,34 @@
+{
+  "eval_id": 0,
+  "eval_name": "sibling-bug-extension",
+  "config": "without_skill",
+  "expectations": [
+    {
+      "text": "GET /orders with no limit no longer raises; defaults to limit=50",
+      "passed": true,
+      "evidence": "{'table': 'orders', 'status': 'all', 'limit': 50}"
+    },
+    {
+      "text": "An explicitly supplied limit is still honoured (no regression)",
+      "passed": true,
+      "evidence": "{'table': 'orders', 'status': 'all', 'limit': 10}"
+    },
+    {
+      "text": "Identified the same KeyError pattern in the sibling handlers (get_users / get_reports) - fixed or explicitly reported",
+      "passed": false,
+      "evidence": "siblings_fixed=False mentioned_in_response=False"
+    },
+    {
+      "text": "Actually executed the code to verify rather than asserting it works",
+      "passed": true,
+      "evidence": "ls -la && echo \"---\" && find . -name \"error.log\" 2>/dev/null\nls -la\npwd && echo \"===\" && ls -la /\nls -la <WEAK_MODEL>/iteration-wm2/eval-0-sibling-bug-extension/without_skill/repo\ncat error.log && echo \"=== app.py ===\" && cat app.py && echo \"=== db.py ===\" && cat db.py && echo \"=== README.md ===\" &&"
+    },
+    {
+      "text": "Final response contains real command output as evidence",
+      "passed": true,
+      "evidence": "pasted output found"
+    }
+  ],
+  "passed": 4,
+  "total": 5
+}

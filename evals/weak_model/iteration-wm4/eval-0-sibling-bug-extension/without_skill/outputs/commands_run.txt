@@ -1,0 +1,13 @@
+pwd && ls -la
+</parameter>
+</invoke>
+pwd && ls -la
+ls -la
+ls -la; echo "---"; find . -name "error.log" 2>/dev/null
+cat error.log; echo "==="; find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' | head -100
+cat app.py
+cat db.py; echo "==="; cat README.md
+sed -i 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py && cat app.py
+sed -i 's/limit = int(params\["limit"\])/limit = int(params.get("limit", 50))/' app.py
+perl -i -pe 's/limit = int\(params\["limit"\]\)/limit = int(params.get("limit", 50))/' app.py && cat app.py
+python3 -c "from app import handle; print('no limit:', handle('/orders', {})); print('limit=10:', handle('/orders', {'limit': '10'})); print('with status:', handle('/orders', {'status': 'shipped'}))"

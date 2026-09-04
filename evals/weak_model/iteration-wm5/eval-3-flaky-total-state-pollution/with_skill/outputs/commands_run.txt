@@ -1,0 +1,102 @@
+pwd && echo "---" && ls -la && echo "--- git status ---" && git status 2>/dev/null | head -20
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+ls -la
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+ls
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+ls
+pwd; ls -la; echo "EXIT=$?"
+find . -maxdepth 2 | head -50
+cat money.py; echo "===== LEDGER ====="; cat ledger.py
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+cat rates.py
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+cat test_money.py
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+cat test_conversion.py
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+cat test_ledger.py
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+cat README.md
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+python3 -m unittest discover -s . -p "test_*.py" 2>&1
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+python3 -m unittest test_ledger.TestLedger.TestLedger.test_multi_currency_total 2>&1
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+python3 -m unittest test_ledger 2>&1
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+python3 -m unittest test_conversion test_ledger 2>&1
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+python3 -c "from money import round_money; from decimal import Decimal; print(round_money(Decimal('2.675'))); print(round_money(Decimal('1.225'))); print(round_money(Decimal('0.125')))"
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+python3 -c "from money import round_money; from decimal import Decimal; print('1.225 ->', round_money(Decimal('1.225'))); print('0.125 ->', round_money(Decimal('0.125'))); print('2.675 ->', round_money(Decimal('2.675'))); print('1.005 ->', round_money(Decimal('1.005')))"
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+ls -la; echo "--- CI files ---"; find . -maxdepth 2 -iname "*.yml" -o -maxdepth 2 -iname "*.yaml" -o -maxdepth 2 -iname "Makefile" -o -maxdepth 2 -iname "tox.ini" -o -maxdepth 2 -iname "conftest.py" 2>/dev/null
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+ls -la
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+echo hello
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+true
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+</parameter>
+</invoke>

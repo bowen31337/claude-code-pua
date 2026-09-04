@@ -1,0 +1,57 @@
+{
+  "raw_aggregate": {
+    "with_skill": "142/156 (91.0%)",
+    "baseline": "137/156 (87.8%)",
+    "delta_pp": 3.2
+  },
+  "clean_iterations_only_excl_wm2_wm5": {
+    "with_skill": "101/104 (97.1%)",
+    "baseline": "90/104 (86.5%)",
+    "delta_pp": 10.6
+  },
+  "per_iteration": {
+    "with_skill": [
+      25,
+      18,
+      26,
+      26,
+      23,
+      24
+    ],
+    "baseline": [
+      24,
+      22,
+      22,
+      22,
+      25,
+      22
+    ],
+    "with_skill_mean": 23.67,
+    "with_skill_stdev": 2.75,
+    "baseline_mean": 22.83,
+    "baseline_stdev": 1.21
+  },
+  "wins_by_iteration": {
+    "skill": 4,
+    "baseline": 2,
+    "total_iterations": 6
+  },
+  "max_turns_breakdowns": {
+    "total_instances": 3,
+    "all_on_with_skill_runs": true,
+    "instances": [
+      "wm2/eval-1-red-suite-evidence/with_skill",
+      "wm2/eval-3-flaky-total-state-pollution/with_skill",
+      "wm5/eval-3-flaky-total-state-pollution/with_skill"
+    ],
+    "root_cause": "model reverts to its native <tool_call><function=bash>... XML format instead of the harness's requested fenced-block protocol; occurred exclusively on with_skill runs, whose system prompt is roughly 3x longer than baseline's"
+  },
+  "cost": {
+    "tokens_with_skill": 1932979,
+    "tokens_baseline": 804246,
+    "token_ratio": 2.4,
+    "tool_calls_with_skill": 269,
+    "tool_calls_baseline": 261,
+    "tool_call_ratio": 1.03
+  }
+}

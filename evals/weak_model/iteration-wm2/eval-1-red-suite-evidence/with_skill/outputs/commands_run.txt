@@ -1,0 +1,99 @@
+cd /repo 2>/dev/null || cd ~ ; pwd; ls -la; echo "---"; python3 -m unittest test_slugify 2>&1 | head -100
+find / -name "test_slugify*" 2>/dev/null; echo "---"; find / -name "slugify*" 2>/dev/null | head -20
+</parameter>
+</invoke>
+</parameter>
+</invoke>
+for d in /root /home /tmp /workspace /app /srv /opt /data /Users; do echo "== $d =="; find "$d" -name "test_slugify*" 2>/dev/null; find "$d" -name "slugify*" 2>/dev/null; done
+</parameter>
+</invoke>
+</parameter>
+timeout 20 find /root /home /tmp /workspace /app -name "test_slugify*" 2>/dev/null; echo "EXIT:$?"
+</parameter>
+</invoke>
+</parameter>
+ls -la /workspace 2>/dev/null; echo "==="; ls -la /app 2>/dev/null; echo "==="; ls -la /tmp 2>/dev/null | head
+</parameter>
+</invoke>
+</parameter>
+timeout 20 find /workspace /app /root /home -maxdepth 4 -name "*slugify*" 2>/dev/null; echo "DONE"
+</parameter>
+</invoke>
+</parameter>
+echo hello
+</parameter>
+</invoke>
+</parameter>
+pwd
+</parameter>
+</invoke>
+</parameter>
+ls -la
+</parameter>
+</invoke>
+</parameter>
+ls -la
+</parameter>
+</invoke>
+</parameter>
+pwd; ls
+</parameter>
+</invoke>
+</parameter>
+bash -c 'ls -la'
+</parameter>
+</invoke>
+</parameter>
+( ls -la ) ; true
+</parameter>
+</invoke>
+</parameter>
+ls -la > /tmp/out.txt 2>&1 ; cat /tmp/out.txt
+</parameter>
+</invoke>
+</parameter>
+cat /tmp/out.txt
+</parameter>
+</invoke>
+</parameter>
+ls -la #
+</parameter>
+</invoke>
+</parameter>
+ls
+</parameter>
+</invoke>
+</parameter>
+echo START; ls -la; echo END
+</parameter>
+</invoke>
+</parameter>
+ls -la > /tmp/out.txt 2>&1
+</parameter>
+</invoke>
+</parameter>
+cat /tmp/out.txt
+</parameter>
+</invoke>
+</parameter>
+ls -la /tmp/out.txt
+</parameter>
+</invoke>
+</parameter>
+ls -la
+</parameter>
+</invoke>
+</parameter>
+echo $(ls -la)
+</parameter>
+</invoke>
+</parameter>
+printf '%s\n' *
+</parameter>
+</invoke>
+</parameter>
+cat slugify.py
+</parameter>
+</invoke>
+</parameter>
+</parameter>

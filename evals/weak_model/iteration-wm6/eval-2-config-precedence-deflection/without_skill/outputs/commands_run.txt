@@ -1,0 +1,719 @@
+ls -la && echo "---MAIN---" && cat main.py
+</parameter>
+ls -la
+pwd && ls -la
+ls -la <WEAK_MODEL>/iteration-wm6/eval-2-config-precedence-deflection/without_skill/repo
+cat settings.py
+ls -la config/ && echo "===STAGING===" && cat config/staging.yaml
+echo "===DEFAULTS.ENV===" && cat config/defaults.env && echo "" && echo "===PRODUCTION.YAML===" && cat config/production.yaml
+echo "===STAGING.YAML HEXDUMP (head)===" && head -c 60 config/staging.yaml | od -c
+APP_ENV=staging python3 main.py; echo "===EXIT $?==="
+</parameter>
+</parameter>
+</parameter>
+python3 -c "
+from settings import _parse_yaml, _load_env_file
+print('--- parsed staging.yaml ---')
+for k,v in _parse_yaml('config/staging.yaml').items():
+    print(f'  {k} = {v}')
+print('--- parsed defaults.env ---')
+for k,v in _load_env_file('config/defaults.env').items():
+    print(f'  {k} = {v}')
+"
+</parameter>
+</parameter>
+</parameter>
+python3 -c "
+import os
+os.environ.pop('DATABASE_URL', None)
+from settings import load_settings
+import settings as S
+# monkeypatch to trace
+orig = S.load_settings
+st = {}
+st.update(S._parse_yaml('config/staging.yaml'))
+print('after yaml step      :', st.get('database_url'))
+for k,v in S._load_env_file('config/defaults.env').items():
+    st[k.lower()] = v
+print('after defaults.env   :', st.get('database_url'))
+"
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter>
+</parameter
+cat > settings.py << 'EOF'
+import os
+import re
+
+CONFIG_DIR = os.path.join(os.path.dirname(__file__), "config")
+
+
+def _parse_yaml(path):
+    """Minimal flat-YAML reader. Good enough for our config files."""
+    out = {}
+    with open(path) as fh:
+        for line in fh:
+            line = line.rstrip("\n")
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            if line.startswith(" "):
+                continue
+            m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*):\s*(.*)$", line)
+            if m and m.group(2):
+                out[m.group(1)] = m.group(2).strip()
+    return out
+
+
+def _load_env_file(path):
+    out = {}
+    with open(path) as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            k, _, v = line.partition("=")
+            out[k.strip()] = v.strip()
+    return out
+
+
+def load_settings(env=None):
+    env = env or os.environ.get("APP_ENV", "production")
+
+    settings = {}
+
+    # 1. baked-in defaults, so a bare container still boots.
+    #    These are the LOWEST priority: just a safety net.
+    for key, value in _load_env_file(os.path.join(CONFIG_DIR, "defaults.env")).items():
+        settings[key.lower()] = value
+
+    # 2. environment-specific yaml overrides the baked-in defaults
+    settings.update(_parse_yaml(os.path.join(CONFIG_DIR, f"{env}.yaml")))
+
+    # 3. real environment variables win
+    for key in ("DATABASE_URL", "REDIS_URL", "LOG_LEVEL"):
+        if key in os.environ:
+            settings[key.lower()] = os.environ[key]
+
+    return settings
+EOF
+echo "written"
+APP_ENV=staging python3 main.py
+echo "=== production ===" && APP_ENV=production python3 main.py && echo "" && echo "=== bare (no APP_ENV) ===" && env -u APP_ENV python3 main.py && echo "" && echo "=== env var override wins ===" && APP_ENV=staging DATABASE_URL=postgres://override.internal:5432/app python3 main.py

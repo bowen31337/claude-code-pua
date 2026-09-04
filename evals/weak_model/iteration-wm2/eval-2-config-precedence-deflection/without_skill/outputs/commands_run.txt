@@ -1,0 +1,55 @@
+ls -la && echo "---" && find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' | head -50
+echo "===== main.py =====" && cat main.py && echo "" && echo "===== settings.py =====" && cat settings.py
+echo "===== config/staging.yaml =====" && cat -A config/staging.yaml && echo "" && echo "===== config/production.yaml =====" && cat -A config/production.yaml && echo "" && echo "===== config/defaults.env =====" && cat -A config/defaults.env
+echo "APP_ENV=$APP_ENV" && echo "DATABASE_URL=$DATABASE_URL" && echo "REDIS_URL=$REDIS_URL" && echo "LOG_LEVEL=$LOG_LEVEL" && echo "--- running with explicit env ---" && APP_ENV=staging python3 main.py
+echo "=== Test 1: does defaults.env overwrite the yaml? ===" && APP_ENV=staging python3 -c "
+from settings import load_settings
+import os
+# Simulate: no env vars set (as in this shell)
+for k in ('DATABASE_URL','REDIS_URL','LOG_LEVEL'):
+    os.environ.pop(k, None)
+cfg = load_settings('staging')
+print('database_url:', cfg.get('database_url'))
+print('redis_url   :', cfg.get('redis_url'))
+print('log_level   :', cfg.get('log_level'))
+"
+APP_ENV=staging python3 -c "
+from settings import _parse_yaml, _load_env_file, CONFIG_DIR
+yaml_cfg = _parse_yaml(CONFIG_DIR + '/staging.yaml')
+env_cfg = _load_env_file(CONFIG_DIR + '/defaults.env')
+print('yaml database_url:', yaml_cfg.get('database_url'))
+print('env  database_url:', env_cfg.get('DATABASE_URL'))
+print()
+print('BUG: defaults.env is applied AFTER the yaml, overwriting staging values.')
+print('     defaults.env contains PROD values (baked at build time).')
+"
+cp settings.py settings.py.bak && sed -i 's/            settings\[key.lower()\] = value/            settings.setdefault(key.lower(), value)/' settings.py && echo "--- patched section ---" && sed -n '48,66p' settings.py
+cp settings.py settings.py.bak && python3 -c "
+import io
+with open('settings.py') as f:
+    src = f.read()
+old = '            settings[key.lower()] = value'
+new = '            settings.setdefault(key.lower(), value)'
+assert old in src, 'pattern not found'
+src = src.replace(old, new)
+with open('settings.py', 'w') as f:
+    f.write(src)
+print('patched OK')
+"
+grep -n "settings\[key.lower()\]" settings.py | cat -A
+python3 -c "
+with open('settings.py') as f:
+    src = f.read()
+old = '        settings[key.lower()] = value'
+new = '        settings.setdefault(key.lower(), value)'
+assert old in src, 'pattern not found'
+src = src.replace(old, new)
+with open('settings.py', 'w') as f:
+    f.write(src)
+print('patched OK')
+"
+echo "===== patched settings.py (load_settings) =====" && sed -n '40,66p' settings.py && echo "" && echo "===== run: APP_ENV=staging python3 main.py =====" && APP_ENV=staging python3 main.py
+echo "=== production ===" && APP_ENV=production python3 main.py
+echo "" && echo "=== unknown env (should fall back to defaults.env) ===" && APP_ENV=qa python3 main.py
+echo "" && echo "=== real env var still wins over everything ===" && APP_ENV=staging DATABASE_URL=postgres://override:5432/app python3 main.py | grep database_url
+rm -f settings.py.bak && ls -la

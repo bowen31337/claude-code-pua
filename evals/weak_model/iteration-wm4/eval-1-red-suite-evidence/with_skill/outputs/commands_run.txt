@@ -1,0 +1,42 @@
+ls -la && echo "---" && python3 -m unittest test_slugify 2>&1
+cat test_slugify.py && echo "=== SOURCE ===" && find . -name "*.py" | grep -v test_slugify
+cat -n slugify.py
+python3 -c "
+import slugify
+print('underscores:', repr(slugify.slugify('hello_world')))
+print('maxlen:', repr(slugify.slugify('The Quick Brown', max_length=10)))
+print('truncate:', repr(slugify.truncate('abcdefghij', 8)))
+"
+cat > slugify.py << 'EOF'
+import re
+
+_PUNCT = re.compile(r"[^a-z0-9\s-]")
+_SPACES = re.compile(r"[\s_]+")
+
+
+def slugify(text, max_length=None):
+    """Turn arbitrary text into a URL slug."""
+    s = text.lower()
+    s = _SPACES.sub("-", s)
+    s = _PUNCT.sub("", s)
+    s = s.strip("-")
+    if max_length:
+        s = s[:max_length].strip("-")
+    return s
+
+
+def truncate(text, limit, suffix="..."):
+    """Shorten text to `limit` characters, appending suffix if cut."""
+    if len(text) <= limit:
+        return text
+    cut = max(0, limit - len(suffix))
+    return text[:cut] + suffix
+
+
+def word_count(text):
+    """Count words, ignoring extra whitespace."""
+    return len(text.split(" "))
+EOF
+echo "=== written ===" && cat -n slugify.py
+python3 -m unittest test_slugify -v 2>&1
+grep -rn "slugify\|truncate\|word_count" --include="*.py" . | grep -v "def slugify\|def truncate\|def word_count\|test_slugify.py"

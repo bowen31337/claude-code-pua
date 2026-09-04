@@ -1,0 +1,31 @@
+ls -la && echo "---" && find . -name "error.log" 2>/dev/null
+ls -la && echo "=== ERROR LOG ===" && cat error.log
+cat app.py && echo "=== SERVER ===" && cat server.py
+find . -name "*.py" 2>/dev/null && echo "=== ALL FILES ===" && ls -la
+cat db.py && echo "=== HIDDEN ===" && ls -la
+sed -i 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py && sed -n '5,9p' app.py
+python3 -c "
+import re
+with open('app.py') as f:
+    content = f.read()
+content = content.replace('    limit = int(params[\"limit\"])', '    limit = int(params.get(\"limit\", 50))')
+with open('app.py', 'w') as f:
+    f.write(content)
+" && sed -n '5,9p' app.py
+python3 -c "
+from app import get_orders
+
+# Before: KeyError: 'limit'. Now should default to 50.
+print('no limit param:', get_orders({}))
+print('with limit param:', get_orders({'limit': '10'}))
+print('with limit + status:', get_orders({'limit': '5', 'status': 'shipped'}))
+"
+python3 -c "
+from app import get_users, get_reports
+for name, fn in [('get_users', get_users), ('get_reports', get_reports)]:
+    try:
+        fn({})
+        print(name, '-> OK with empty params')
+    except Exception as e:
+        print(name, '-> BROKEN:', type(e).__name__, e)
+"

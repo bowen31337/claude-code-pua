@@ -1,0 +1,48 @@
+ls -la && echo "---MAIN---" && cat main.py
+echo "---SETTINGS---" && cat settings.py && echo "---TREE---" && find . -type f -not -path '*/\.*' | head -50
+echo "---STAGING.YAML---" && cat config/staging.yaml && echo "---PRODUCTION.YAML---" && cat config/production.yaml && echo "---DEFAULTS.ENV---" && cat config/defaults.env
+echo "---RUN STAGING---" && APP_ENV=staging python3 main.py && echo "---RUN PROD---" && APP_ENV=production python3 main.py && echo "---README---" && cat README.md
+cp settings.py settings.py.bak && python3 - <<'PY'
+import re
+src = open("settings.py").read()
+
+old = '''    settings = {}
+
+    # 1. environment-specific yaml
+    settings.update(_parse_yaml(os.path.join(CONFIG_DIR, f"{env}.yaml")))
+
+    # 2. baked-in defaults, so a bare container still boots
+    for key, value in _load_env_file(os.path.join(CONFIG_DIR, "defaults.env")).items():
+        settings[key.lower()] = value
+
+    # 3. real environment variables win
+    for key in ("DATABASE_URL", "REDIS_URL", "LOG_LEVEL"):
+        if key in os.environ:
+            settings[key.lower()] = os.environ[key]
+
+    return settings'''
+
+new = '''    settings = {}
+
+    # 1. baked-in defaults, so a bare container still boots.
+    #    Lowest precedence: environment yaml and real env vars override these.
+    for key, value in _load_env_file(os.path.join(CONFIG_DIR, "defaults.env")).items():
+        settings[key.lower()] = value
+
+    # 2. environment-specific yaml
+    settings.update(_parse_yaml(os.path.join(CONFIG_DIR, f"{env}.yaml")))
+
+    # 3. real environment variables win
+    for key in ("DATABASE_URL", "REDIS_URL", "LOG_LEVEL"):
+        if key in os.environ:
+            settings[key.lower()] = os.environ[key]
+
+    return settings'''
+
+assert old in src, "pattern not found"
+open("settings.py", "w").write(src.replace(old, new))
+print("patched OK")
+PY
+echo "---STAGING---" && APP_ENV=staging python3 main.py && echo "---PRODUCTION---" && APP_ENV=production python3 main.py && echo "---STAGING WITH REAL ENV VAR OVERRIDE---" && APP_ENV=staging DATABASE_URL=postgres://override.internal:5432/app python3 main.py
+echo "---CALLERS---" && grep -rn "load_settings\|_parse_yaml\|defaults.env" --include="*.py" . && echo "---GREP PROD URL---" && grep -rn "prod-db.internal" .
+rm -f settings.py.bak && echo "cleaned up" && echo "---FINAL settings.py---" && sed -n '35,52p' settings.py

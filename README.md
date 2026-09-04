@@ -150,7 +150,7 @@ The grader executes the resulting code rather than inspecting prose: it calls th
 runs the original test suites against each modified source, checks that real environment variables
 still beat YAML after the precedence fix, and re-runs the ledger suite both fully and in isolation.
 
-## A weaker model: the tie breaks (small sample)
+## A weaker model: a real edge, but noisier than it first looked
 
 Every result above used Claude Opus 5. The open question after three consecutive ties was whether
 the skill's value is model-dependent — hard to detect on a model already strong enough to do most
@@ -158,44 +158,58 @@ of this unprompted. Testing that needed an actual weaker model, run through a cu
 (`evals/weak_model/`) since llama-server exposes only an OpenAI-compatible chat endpoint, not
 Claude Code's native tool use.
 
-**Model:** a 35B-parameter MoE (~3B active parameters per token), served locally via llama-server —
-weaker than Opus 5, not a small model. **Harness:** a minimal bash-block ReAct loop; the with-skill
-system prompt is `SKILL.md` with tool references honestly adapted (no promised `Grep`/`WebSearch`
-that don't exist in this harness; the two gated reference files are dropped rather than left as
-dangling paths). Same four fixtures, same grader, one run per cell.
+**Model:** a 35B-parameter MoE (~3B active params/token), served locally via llama-server — weaker
+than Opus 5, not a small model. **Harness:** a minimal bash-fence ReAct loop; the with-skill system
+prompt is `SKILL.md` with tool references honestly adapted (no promised `Grep`/`WebSearch` that
+don't exist in this harness). Same four fixtures, same grader.
 
-| | With skill | Baseline |
+A single sweep scored 25/26 with-skill vs 24/26 baseline — the first non-tie across all testing.
+**Five more full sweeps were run to check whether that held up. It doesn't hold up simply, but it
+doesn't invert either — the real picture is more specific than either summary.**
+
+### Six-iteration aggregate
+
+| | Raw aggregate | Excluding 2 breakdown iterations |
 |---|---|---|
-| Score | **25/26** | 24/26 |
-| Tokens | 266,236 | 114,410 |
-| Tool calls | 47 | 46 |
+| With skill | 142/156 (91.0%) | **101/104 (97.1%)** |
+| Baseline | 137/156 (87.8%) | 90/104 (86.5%) |
+| Delta | +3.2pp | **+10.6pp** |
 
-**For the first time across all testing, the tie broke.** Three assertions differed — two in the
-skill's favor, one against it:
+Skill wins 4 of 6 iterations, baseline wins 2. Skill's per-iteration variance is more than double
+baseline's — stdev 2.75 (scores ranging 18–26 out of 26) vs stdev 1.21 (22–25). At that variance,
++3.2pp on the raw aggregate is weak, noisy signal, not a confirmed effect.
 
-- The baseline missed the sibling bugs in eval-0 **entirely** — didn't fix them, didn't even
-  mention them (every Opus 5 baseline, across three iterations, always at least flagged them).
-  Confirmed genuine by executing the baseline's untouched routes directly: both still raise
-  `KeyError`.
-- The baseline asserted "all 8 tests pass" in eval-1 without ever pasting the actual test output —
-  exactly the empty-completion failure mode the skill exists to prevent. With-skill opened with the
-  verbatim `Ran 8 tests ... OK` and ran an unprompted edge-case sweep.
-- **Against the skill:** the with-skill eval-3 response claimed "your rounding code is fine" — and
-  never actually tested the tie-breaking behavior it was asserting. That claim is false; the
-  baseline caught the same real bug the skill run talked past. Checked directly: no command in the
-  with-skill transcript ever exercises a half-cent case. This sits in real tension with the skill's
-  own evidence standard and is the finding worth sitting with, not filing away as noise.
+**But the variance has a mechanistic explanation, not just noise.** All 3 max-turns breakdowns
+across all 48 runs happened *exclusively* on with-skill runs — the model abandoned the harness's
+fenced-block protocol partway through and reverted to its own natively-trained XML tool-call format
+(`<tool_call><function=bash>...`), which the harness's parser can't read, producing garbled failed
+commands until the turn cap. The with-skill system prompt is roughly 3× longer than baseline's; the
+working hypothesis is that length raises the odds of this drift, though 3 instances isn't enough to
+confirm the specific mechanism.
 
-**Cost behaves differently here too.** 2.33× tokens against 1.4–1.5× on every Opus 5 iteration —
-but tool-call and turn counts were nearly identical (1.02×, 1.04×), unlike Opus 5 where tool calls
-also scaled up. On this model the skill isn't driving more actions, it's driving much longer prose
-per turn.
+**Excluding those two breakdown iterations, the picture is clean and consistent**: +10.6 points,
+and all four surviving iterations individually favor the skill (25, 26, 26, 24 vs 24, 22, 22, 22).
+That's a real, repeatable quality edge when the run completes normally — consistent with the
+original run's qualitative findings (baseline missing sibling bugs entirely; baseline asserting
+"tests pass" without pasting real output).
 
-**Read this as a lead, not a conclusion.** One run per cell, one model. It could flip on a rerun,
-and it doesn't establish that "weaker" is the right explanatory variable rather than something
-specific to this model's MoE architecture. Multiple runs and a second weaker model would be needed
-before calling this confirmed. Full writeup and the two harness bugs caught and fixed while
-producing it: `evals/weak_model/notes.txt`.
+**Cost got worse in aggregate, not better**: 2.40× tokens across all 48 runs (up from the
+single-run estimate of 2.33×), while tool-call count stayed essentially flat (1.03×) — the same
+finding as the first run, now with six times the sample: the skill drives longer prose per turn on
+this model, not more actions.
+
+### What this does and doesn't show
+
+The single 25/26 result was not simply reproduced — a naive win-count is 4–2, not 6–0, and the raw
+aggregate sits inside the skill's own run-to-run noise. But the aggregate is hiding a real split:
+on runs that complete without a harness-level breakdown, the advantage is both larger and perfectly
+consistent. The skill's own length looks like a liability *specific to this harness design* — a
+bash-fence protocol asks the model to override its native tool-calling training, and that's a
+testable, falsifiable claim, not yet confirmed with 3 data points. The natural next step is
+re-running with llama-server's actual `tools`/function-calling parameter instead of asking the
+model to fight its trained format — which should remove this specific confound and answer more
+cleanly whether the +10.6pp clean-run edge is real. Full writeup, including how the breakdown
+instances were verified rather than assumed: `evals/weak_model/notes.txt` and `notes_repeated.txt`.
 
 ## Token cost
 

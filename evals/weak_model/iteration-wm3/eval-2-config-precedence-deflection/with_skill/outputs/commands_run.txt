@@ -1,0 +1,35 @@
+ls -la && echo "---MAIN---" && cat main.py
+cat settings.py && echo "---TREE---" && find . -type f -not -path '*/\.*' | head -50
+echo "---staging.yaml---" && cat -A config/staging.yaml && echo "" && echo "---production.yaml---" && cat -A config/production.yaml && echo "" && echo "---defaults.env---" && cat -A config/defaults.env
+echo "APP_ENV=$APP_ENV" && echo "DATABASE_URL=$DATABASE_URL" && echo "REDIS_URL=$REDIS_URL" && echo "LOG_LEVEL=$LOG_LEVEL" && echo "---RUN---" && APP_ENV=staging python3 main.py
+python3 -c "
+import settings
+# Simulate: yaml sets staging, defaults should NOT overwrite it
+s = {}
+s.update(settings._parse_yaml('config/staging.yaml'))
+print('after yaml:', s.get('database_url'))
+# Now the buggy defaults step
+for k,v in settings._load_env_file('config/defaults.env').items():
+    s[k.lower()] = v
+print('after defaults (buggy):', s.get('database_url'))
+"
+sed -i 's/        settings\[key.lower()\] = value/        settings.setdefault(key.lower(), value)/' settings.py && echo "---verify change---" && grep -n "setdefault\|key.lower" settings.py
+python3 - <<'EOF'
+import re, pathlib
+p = pathlib.Path("settings.py")
+src = p.read_text()
+old = "        settings[key.lower()] = value\n"
+new = "        settings.setdefault(key.lower(), value)\n"
+assert old in src, "target line not found"
+p.write_text(src.replace(old, new))
+print("patched")
+EOF
+echo "---verify---" && grep -n "setdefault\|key.lower" settings.py
+echo "=== 1. staging, no env vars (the reported bug) ===" && APP_ENV=staging python3 main.py
+echo "" && echo "=== 2. production ===" && APP_ENV=production python3 main.py
+echo "" && echo "=== 3. staging with explicit env var override (should win) ===" && APP_ENV=staging DATABASE_URL=postgres://override.internal:5432/app python3 main.py
+echo "" && echo "=== 4. bare env (no APP_ENV) -> defaults fill in missing keys ===" && python3 main.py
+echo "=== grep for other overwrite patterns ===" && grep -rn "settings\[" . --include=*.py
+echo "" && echo "=== README precedence docs ===" && cat README.md
+echo "=== exact reported command ===" && APP_ENV=staging python3 main.py
+echo "" && echo "=== settings.py (final) ===" && cat settings.py

@@ -1,0 +1,29 @@
+pwd && ls -la
+</parameter>
+</invoke>
+pwd && ls -la
+</parameter>
+</invoke>
+ls -la
+</parameter>
+</invoke>
+ls -la
+ls -la <WEAK_MODEL>/iteration-wm3/eval-0-sibling-bug-extension/without_skill/repo
+cat error.log
+cat app.py
+cat db.py && echo "---README---" && cat README.md
+</parameter>
+</invoke>
+sed -i '' 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py
+</parameter>
+</invoke>
+sed -i '' 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py
+cat app.py
+</parameter>
+</invoke>
+cd <WEAK_MODEL>/iteration-wm3/eval-0-sibling-bug-extension/without_skill/repo && python3 -c "from app import handle; print(handle('/orders', {}))"
+</parameter>
+</invoke>
+cd <WEAK_MODEL>/iteration-wm3/eval-0-sibling-bug-extension/without_skill/repo && python3 -c "from app import handle; print(handle('/orders', {'limit': '10'}))"
+</parameter>
+</invoke>

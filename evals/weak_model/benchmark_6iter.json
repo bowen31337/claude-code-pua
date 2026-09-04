@@ -1,0 +1,134 @@
+{
+  "metadata": {
+    "skill_name": "pua",
+    "skill_path": "pua/",
+    "executor_model": "Ornith-1.5-35B-A3B-Q5_K_M (35B MoE, ~3B active params/token, local llama-server)",
+    "harness": "custom bash-fence ReAct loop (weak_model/harness.py)",
+    "iterations": [
+      "iteration-wm1",
+      "iteration-wm2",
+      "iteration-wm3",
+      "iteration-wm4",
+      "iteration-wm5",
+      "iteration-wm6"
+    ],
+    "runs_per_configuration": 6,
+    "total_runs": 48
+  },
+  "aggregate": {
+    "raw_aggregate": {
+      "with_skill": "142/156 (91.0%)",
+      "baseline": "137/156 (87.8%)",
+      "delta_pp": 3.2
+    },
+    "clean_iterations_only_excl_wm2_wm5": {
+      "with_skill": "101/104 (97.1%)",
+      "baseline": "90/104 (86.5%)",
+      "delta_pp": 10.6
+    },
+    "per_iteration": {
+      "with_skill": [
+        25,
+        18,
+        26,
+        26,
+        23,
+        24
+      ],
+      "baseline": [
+        24,
+        22,
+        22,
+        22,
+        25,
+        22
+      ],
+      "with_skill_mean": 23.67,
+      "with_skill_stdev": 2.75,
+      "baseline_mean": 22.83,
+      "baseline_stdev": 1.21
+    },
+    "wins_by_iteration": {
+      "skill": 4,
+      "baseline": 2,
+      "total_iterations": 6
+    },
+    "max_turns_breakdowns": {
+      "total_instances": 3,
+      "all_on_with_skill_runs": true,
+      "instances": [
+        "wm2/eval-1-red-suite-evidence/with_skill",
+        "wm2/eval-3-flaky-total-state-pollution/with_skill",
+        "wm5/eval-3-flaky-total-state-pollution/with_skill"
+      ],
+      "root_cause": "model reverts to its native <tool_call><function=bash>... XML format instead of the harness's requested fenced-block protocol; occurred exclusively on with_skill runs, whose system prompt is roughly 3x longer than baseline's"
+    },
+    "cost": {
+      "tokens_with_skill": 1932979,
+      "tokens_baseline": 804246,
+      "token_ratio": 2.4,
+      "tool_calls_with_skill": 269,
+      "tool_calls_baseline": 261,
+      "tool_call_ratio": 1.03
+    }
+  },
+  "notes": [
+    "FIVE MORE FULL SWEEPS RUN TO CHECK WHETHER THE FIRST RESULT (25/26 vs 24/26) HOLDS UP. It does not",
+    "hold up as a simple \"skill always wins\" pattern, but it doesn't invert either -- the honest picture",
+    "is more specific and more interesting than either of those two summaries.",
+    "RAW SIX-ITERATION AGGREGATE: 142/156 (91.0%) with-skill vs 137/156 (87.8%) baseline, +3.2 points of",
+    "percentage. Skill wins 4 of 6 iterations (wm1, wm3, wm4, wm6), baseline wins 2 (wm2, wm5). Skill's",
+    "per-iteration variance is more than double baseline's: stdev 2.75 (scores ranging 18-26 out of 26)",
+    "vs stdev 1.21 (scores ranging 22-25). At this level, +3.2pp against a skill stdev of 2.75 is a weak,",
+    "noisy signal, not a confirmed effect -- consistent with the standing \"lead, not a conclusion\"",
+    "framing from the single-run result.",
+    "THE VARIANCE HAS A MECHANISTIC EXPLANATION, NOT JUST NOISE: all 3 max-turns breakdowns across all",
+    "48 runs happened exclusively on with_skill runs (0 on baseline). In each, the model abandoned the",
+    "harness's requested ```bash/```final fenced-block protocol partway through (or from turn 1) and",
+    "reverted to its own natively-trained XML tool-call format (`<tool_call><function=bash><parameter=",
+    "command>...`), which the harness's parser cannot read -- producing a stream of failed, garbled",
+    "commands until the 25-turn cap. This is a genuine model behavior, not a parsing bug (verified by",
+    "reading the raw turn-by-turn log, not just the final transcript) -- confirmed independently on",
+    "wm2/eval-1, wm2/eval-3, and wm5/eval-3, all showing the identical `</parameter>\\n</invoke>` artifact",
+    "signature. The with_skill system prompt is roughly 3x longer than baseline's; the working hypothesis",
+    "is that a longer, more complex system prompt raises the chance of this format-drift under prolonged",
+    "reasoning, though 3 data points is not enough to confirm that specific mechanism over \"longer runs",
+    "just have more chances to drift\" in general.",
+    "EXCLUDING THE TWO BREAKDOWN ITERATIONS (WM2, WM5), THE PICTURE IS CLEAR AND CONSISTENT: 101/104",
+    "(97.1%) with-skill vs 90/104 (86.5%) baseline, +10.6 points of percentage -- and every one of the",
+    "four clean iterations individually favors the skill (25,26,26,24 vs 24,22,22,22). This suggests the",
+    "skill's CONTENT does carry a real, repeatable quality benefit on this weaker model when the run",
+    "completes normally -- consistent with the qualitative pattern from the very first run (baseline",
+    "missing sibling bugs entirely, baseline asserting \"tests pass\" without pasting real output). The",
+    "aggregate number understates this because it is being pulled down by a harness-compatibility risk",
+    "that is correlated with, but not obviously CAUSED BY, the skill's actual guidance content.",
+    "COST CONFIRMED AND WORSENED IN AGGREGATE: 2.40x tokens (1,932,979 vs 804,246) across all 48 runs,",
+    "up from the single-run estimate of 2.33x. Tool-call count is essentially unchanged (1.03x, 269 vs",
+    "261) -- the same finding as the first run, now with 6x the sample: on this model, the skill drives",
+    "much longer prose per turn, not more actions taken.",
+    "WHAT THIS ACTUALLY SHOWS, STATED PLAINLY:",
+    "1. The single 25/26 vs 24/26 result was NOT simply reproduced -- a naive \"did skill win this",
+    "iteration\" count is 4-2, not 6-0, and the raw point aggregate (+3.2pp) is well within the skill's",
+    "own run-to-run variance. Anyone citing the original single run as \"the result\" would be wrong to",
+    "do so without this context.",
+    "2. But the aggregate hides a real split: on the 4/6 iterations that completed without a harness-",
+    "level breakdown, the skill's advantage is both larger (+10.6pp) and directionally consistent",
+    "(4/4 clean iterations favor it) -- a genuinely different, stronger claim than the raw number",
+    "suggests.",
+    "3. The skill's own length appears to be a liability specific to this harness design: a bash-fence",
+    "ReAct protocol asks the model to override its native tool-calling training, and a longer prompt",
+    "seems to raise the odds it reverts to that native format mid-task. This is a testable, falsifiable",
+    "claim -- NOT yet confirmed with only 3 breakdown instances -- and the natural next step, if this",
+    "line of testing continues, is to rerun using llama-server's actual OpenAI-compatible `tools`/",
+    "function-calling parameter instead of the fenced-block convention, which would let the model use",
+    "its trained format directly and should remove this specific confound.",
+    "4. None of this resolves the original open question (\"is the skill's value model-dependent\") to a",
+    "confirmed yes. It sharpens it: there is now a real, mechanistically-explained reason to expect a",
+    "different answer on a harness that doesn't fight the model's native tool-calling format, and that",
+    "is the experiment this points to next, not a conclusion in itself.",
+    "SANITY CHECKS RUN BEFORE TRUSTING THESE NUMBERS: every run across all 6 iterations was checked for",
+    "hit_max_turns programmatically (not by spot-checking), giving the authoritative count of 3, all on",
+    "with_skill. The 3 breakdown logs were read directly (not inferred from timing.json alone) to confirm",
+    "they share the identical failure signature rather than being 3 unrelated issues."
+  ]
+}
