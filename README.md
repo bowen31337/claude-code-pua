@@ -1,5 +1,14 @@
 # pua — a Performance Improvement Plan for Claude Code
 
+> **⚠️ Retired — not recommended for use.** Across 12 independent benchmark iterations and 96+
+> runs, the evidence did not support that this skill improves outcomes. On Claude Opus 5 — the
+> actual deployment target — three independent runs tied exactly, with the skill costing 1.4–1.5×
+> the tokens for no measurable benefit. On weaker models the result was a wash: a real quality edge
+> on clean runs, offset by a skill-correlated increase in catastrophic task failure. See
+> [**Verdict**](#verdict) below for the full reasoning, and the rest of this README for the
+> complete evidence trail. This repo is archived and kept as a documented negative result rather
+> than deleted, in case the methodology or fixtures are useful to someone else.
+
 A single Claude Code skill that applies corporate performance-review pressure to the agent's own
 work, backed by a concrete troubleshooting procedure and an evidence-first delivery standard.
 
