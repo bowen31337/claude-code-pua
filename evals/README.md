@@ -77,3 +77,20 @@ synthetic "did nothing, called it flaky" run scores 4/9 and a synthetic "moved t
 
 One run per cell — enough to detect a large effect, not a small one. Iteration 2 wall-clock is
 unusable because the machine slept mid-run; token and tool-call counts are unaffected.
+
+
+## Weaker-model testing
+
+`weak_model/` re-runs the same four fixtures against a 35B MoE model (~3B active params/token)
+served locally via llama-server, using a custom bash-block ReAct harness
+(`weak_model/harness.py`) since llama-server has no Claude-Code-style native tool use.
+
+Result: **25/26 with-skill vs 24/26 baseline** — the first non-tie across all testing (Opus 5
+tied 17/17, 26/26, 26/26 three times running). Full reading, including one assertion that went
+*against* the skill and two harness bugs caught and fixed mid-run: `weak_model/notes.txt`.
+
+```bash
+python3 weak_model/grade_wm.py iteration-wm1   # regrade against committed transcripts
+```
+
+Treat this as a lead (one run per cell, one model), not a confirmed effect.

@@ -1,0 +1,105 @@
+cd / && pwd && ls -la
+python3 -m unittest test_slugify 2>&1 | head -50
+cat test_slugify.py
+cat slugify.py
+find / -name "slugify.py" 2>/dev/null; echo "---"; find / -name "test_slugify.py" 2>/dev/null
+ls -la; echo "==="; pwd
+ls -la .; echo "EXIT: $?"; echo "==="; ls -la slugify.py test_slugify.py 2>&1
+python3 -c "
+import re
+_SPACES = re.compile(r'[\s_]+')
+s = 'hello_world'
+print('before:', repr(s))
+print('after:', repr(_SPACES.sub('-', s)))
+print('module version:')
+import slugify
+print(slugify.__file__)
+"
+cat -A slugify.py
+python3 -c "
+import slugify
+print('underscore:', repr(slugify.slugify('hello_world')))
+print('basic:', repr(slugify.slugify('Hello World')))
+"
+grep -n "SPACES" slugify.py | head; echo "==="; sed -n '4p' slugify.py | xxd | head -20
+python3 -c "
+import slugify, inspect
+print('source line 11:', repr(inspect.getsource(slugify.slugify)))
+print('_SPACES regex:', slugify._SPACES.pattern)
+import re
+print('direct sub:', repr(slugify._SPACES.sub('-', 'hello_world')))
+"
+cat > slugify.py << 'EOF'
+import re
+
+_PUNCT = re.compile(r"[^a-z0-9\s_-]")
+_SPACES = re.compile(r"[\s_]+")
+
+
+def slugify(text, max_length=None):
+    """Turn arbitrary text into a URL slug."""
+    s = text.lower()
+    s = _PUNCT.sub("", s)
+    s = _SPACES.sub("-", s)
+    s = s.strip("-")
+    if max_length:
+        s = s[:max_length].rstrip("-")
+    return s
+
+
+def truncate(text, limit, suffix="..."):
+    """Shorten text to `limit` characters, appending suffix if cut."""
+    if len(text) <= limit:
+        return text
+    return text[:limit - len(suffix)] + suffix
+
+
+def word_count(text):
+    """Count words, ignoring extra whitespace."""
+    return len(text.split(" "))
+EOF
+echo "written"; cat slugify.py
+python3 -m unittest test_slugify -v 2>&1
+python3 -c "
+import slugify
+# underscore fix
+assert slugify.slugify('hello_world') == 'hello-world'
+# max_length: cut on dash must not leave trailing dash
+assert slugify.slugify('The Quick Brown', max_length=10) == 'the-quick'
+# max_length: normal cut still works
+assert slugify.slugify('The Quick Brown Fox', max_length=11) == 'the-quick'
+# truncate: total length including suffix respects limit
+assert slugify.truncate('abcdefghij', 8) == 'abcde...'
+assert len(slugify.truncate('abcdefghij', 8)) == 8
+# truncate: short text untouched
+assert slugify.truncate('hi', 10) == 'hi'
+# punctuation still stripped
+assert slugify.slugify('Hello, World!') == 'hello-world'
+print('all edge-case checks passed')
+"
+python3 -c "
+import slugify
+print('max_length=11:', repr(slugify.slugify('The Quick Brown Fox', max_length=11)))
+print('max_length=12:', repr(slugify.slugify('The Quick Brown Fox', max_length=12)))
+print('max_length=13:', repr(slugify.slugify('The Quick Brown Fox', max_length=13)))
+"
+python3 -c "
+import slugify
+# underscore fix
+assert slugify.slugify('hello_world') == 'hello-world'
+# max_length: cut on dash must not leave trailing dash
+assert slugify.slugify('The Quick Brown', max_length=10) == 'the-quick'
+# max_length: normal cut still works (the cut lands mid-word, no trailing dash)
+assert slugify.slugify('The Quick Brown Fox', max_length=11) == 'the-quick-b'
+# truncate: total length including suffix respects limit
+assert slugify.truncate('abcdefghij', 8) == 'abcde...'
+assert len(slugify.truncate('abcdefghij', 8)) == 8
+# truncate: short text untouched
+assert slugify.truncate('hi', 10) == 'hi'
+# punctuation still stripped
+assert slugify.slugify('Hello, World!') == 'hello-world'
+# word_count collapses whitespace
+assert slugify.word_count('one   two\tthree\nfour') == 4
+print('all edge-case checks passed')
+"
+python3 -m unittest test_slugify 2>&1

@@ -1,0 +1,18 @@
+pwd && ls -la
+ls -la && echo "---ERROR LOG---" && cat error.log 2>/dev/null | head -100
+find . -name "*.py" -not -path "*/node_modules/*" 2>/dev/null && echo "---" && ls -la
+echo "===== app.py =====" && cat -n app.py && echo "" && echo "===== db.py =====" && cat -n db.py
+grep -n 'params\[' app.py
+sed -i '' 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py && echo "--- after ---" && sed -n '6,9p' app.py
+python3 -c "
+from app import get_orders
+
+# 1) The exact failing case from the traceback: no limit param
+print('no limit ->', get_orders({}))
+
+# 2) With limit present
+print('limit=5   ->', get_orders({'limit': '5'}))
+
+# 3) status still defaults
+print('status    ->', get_orders({'status': 'shipped'}))
+"

@@ -1,0 +1,65 @@
+FIRST NON-TIE ACROSS ALL TESTING: with_skill scored 25/26, baseline 24/26, on a 35B-parameter
+MoE model (~3B active params/token) served locally via llama-server -- weaker than Claude Opus 5,
+the model every prior iteration (1, 2, 5) used, where the two configurations tied exactly three
+times running (17/17, 26/26, 26/26) across 69 assertions. This is a small sample (one run per
+cell, 26 assertions) and should not be read as a confirmed effect, but it is the first evidence
+in either direction that the skill's value might be model-dependent, which was the standing open
+question after iteration 5.
+
+THREE ASSERTIONS DIFFERED, TWO IN THE SKILL'S FAVOR, ONE AGAINST IT:
+- eval-0: the baseline missed the sibling bugs ENTIRELY -- did not fix them, did not even mention
+  them (unlike every Opus 5 baseline run across all three prior iterations, which always at least
+  flagged them). with_skill fixed all three handlers behind a shared pattern. Confirmed genuine by
+  directly executing /users and /reports against the baseline's repo: both still raise KeyError.
+- eval-1: the baseline asserted "all 8 tests pass" and "green" without ever pasting the actual
+  test-runner output as evidence -- exactly the "empty completion" failure mode this skill exists
+  to prevent. with_skill opened with the verbatim `Ran 8 tests in 0.000s ... OK` and did an
+  unprompted edge-case sweep, flagging a further latent bug (word_count) it left unfixed.
+- eval-3 (AGAINST the skill): with_skill claimed "your rounding code is fine" / "not a rounding
+  bug" -- and never actually tested round_money's tie-breaking behavior to check. That claim is
+  FALSE: round_money genuinely uses banker's rounding against a docstring promising half-up,
+  confirmed independently. The baseline caught this real bug; with_skill made a confident,
+  unverified, and wrong claim about it. Checked commands_run.txt directly: no command in the
+  with_skill transcript ever exercises a tie case. This sits in real tension with the skill's own
+  evidence standard, which is the finding worth sitting with rather than filing away as noise.
+
+COST IS STILL NEGATIVE AND MORE SO THAN ON OPUS 5: with_skill used 2.33x the tokens (266,236 vs
+114,410) versus 1.4-1.5x on every Opus 5 iteration. Tool-call and turn counts were nearly
+IDENTICAL (1.02x, 1.04x) -- unlike Opus 5, where tool-call ratios also rose (1.57-2.0x). On this
+model the skill is not driving more actions, it is driving much longer prose per turn (reasoning
++ checklists + verification narration). That is a materially different cost mechanism from what
+was observed on Opus 5 and is worth flagging as its own finding, not folded into "cost is higher."
+
+HARNESS CORRECTIONS MADE DURING THIS RUN, BOTH VERIFIED AGAINST RAW TRANSCRIPTS BEFORE TRUSTING
+ANY SCORE:
+- extract_block() had two successive bugs: a non-greedy regex that truncated at the first nested
+  code fence, then a rfind("```")-based fix that ALSO truncated -- it matched a nested block's
+  closer as if it were the outer answer's closer whenever the model embedded a code snippet and
+  then never explicitly closed its own final block. This second bug silently deleted the back half
+  of one run's answer (eval-3 baseline lost its entire Verification section and the correct
+  rounding-bug callout) while looking like a complete, plausible response -- worse than an obvious
+  truncation. Fixed by only trusting a closing fence if it is the literal last thing in the
+  message; reprocessed all 8 raw transcripts against the fix, only that one run's final_response.md
+  actually changed (1446 -> 2636 chars). All 8 runs' bash-command logs were also checked for the
+  same failure signature (a nested-fence artifact inside an executed command); one was found
+  (eval-2 baseline) but the underlying file write completed correctly regardless, verified by
+  compiling and executing the resulting repo directly rather than trusting the noisy log.
+- The shared grade.py (used across ALL iterations, not just this one) had a negation-blind regex
+  that flagged "do not retry it in CI" as if the model had recommended retrying, because it only
+  checked for the bare phrase "retry ... in CI" without checking for a preceding negation. This
+  had not surfaced before because no prior Claude response happened to phrase it that way. Fixed
+  in grade.py itself (not just the weak-model copy) so future iterations don't inherit it.
+
+INFRASTRUCTURE NOTE: this used a custom bash-block ReAct harness (weak_model/harness.py), not
+Claude Code's native tool use, since llama-server only exposes an OpenAI-compatible chat endpoint.
+The with_skill system prompt is pua/SKILL.md with tool references honestly adapted (no promises of
+Grep/WebSearch/subagents that don't exist in this harness; the two gated reference files are
+dropped rather than left as dangling paths, since there is no equivalent to Claude Code's
+skill-loading mechanism here). Same four fixtures and same grader as every prior iteration.
+
+WHAT THIS DOES NOT SHOW: one run per cell is not enough to call a 25/26 vs 24/26 split a real
+effect rather than noise -- it could flip on a rerun. It also does not establish that "weaker
+model" is the right explanatory variable rather than something else about this specific model
+(a 3B-active-parameter MoE has a different profile than a dense model of comparable total size).
+Multiple runs per cell, and ideally a second weaker model, would be needed before treating this as
+confirmed evidence that the skill's value is model-dependent.

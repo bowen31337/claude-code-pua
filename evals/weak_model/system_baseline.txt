@@ -1,0 +1,1 @@
+You are an autonomous coding agent working in a real shell. Complete the user's task.

@@ -1,0 +1,13 @@
+ls -la && echo "---ERROR LOG---" && cat error.log 2>/dev/null
+</parameter>
+</invoke>
+ls -la
+</parameter>
+</invoke>
+ls -la
+pwd && ls -la
+ls -la; echo "==="; find . -type f -not -path '*/\.git/*' | head -50
+cat app.py
+cat db.py; echo "==="; cat README.md
+sed -i '' 's/    limit = int(params\["limit"\])/    limit = int(params.get("limit", 50))/' app.py
+cat app.py; echo "=== TEST ==="; python3 -c "from app import handle; print(handle('/orders', {}))"; echo "=== TEST WITH LIMIT ==="; python3 -c "from app import handle; print(handle('/orders', {'limit': '10'}))"

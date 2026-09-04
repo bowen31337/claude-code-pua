@@ -1,0 +1,9 @@
+2026-09-02T14:22:07Z ERROR 500 GET /orders
+Traceback (most recent call last):
+  File "server.py", line 41, in dispatch
+    return handle(path, params)
+  File "app.py", line 22, in handle
+    return ROUTES[path](params)
+  File "app.py", line 7, in get_orders
+    limit = int(params["limit"])
+KeyError: 'limit'

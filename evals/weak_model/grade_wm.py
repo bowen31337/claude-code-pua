@@ -13,8 +13,8 @@ import subprocess
 import sys
 
 W = os.path.dirname(os.path.abspath(__file__))
-IT = os.path.join(W, sys.argv[1] if len(sys.argv) > 1 else "iteration-1")
-FIX = os.path.join(W, "fixtures")
+IT = os.path.join(os.path.dirname(W), "weak_model", sys.argv[1] if len(sys.argv) > 1 else "iteration-wm1")
+FIX = os.path.join(os.path.dirname(W), "fixtures")
 
 EVALS = [
     (0, "sibling-bug-extension"),

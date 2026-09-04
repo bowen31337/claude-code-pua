@@ -1,0 +1,6 @@
+environment: production
+database_url: postgres://prod-db.internal:5432/app
+redis_url: redis://prod-cache.internal:6379/0
+log_level: warn
+feature_flags:
+  new_checkout: false

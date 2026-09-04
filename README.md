@@ -150,6 +150,53 @@ The grader executes the resulting code rather than inspecting prose: it calls th
 runs the original test suites against each modified source, checks that real environment variables
 still beat YAML after the precedence fix, and re-runs the ledger suite both fully and in isolation.
 
+## A weaker model: the tie breaks (small sample)
+
+Every result above used Claude Opus 5. The open question after three consecutive ties was whether
+the skill's value is model-dependent — hard to detect on a model already strong enough to do most
+of this unprompted. Testing that needed an actual weaker model, run through a custom harness
+(`evals/weak_model/`) since llama-server exposes only an OpenAI-compatible chat endpoint, not
+Claude Code's native tool use.
+
+**Model:** a 35B-parameter MoE (~3B active parameters per token), served locally via llama-server —
+weaker than Opus 5, not a small model. **Harness:** a minimal bash-block ReAct loop; the with-skill
+system prompt is `SKILL.md` with tool references honestly adapted (no promised `Grep`/`WebSearch`
+that don't exist in this harness; the two gated reference files are dropped rather than left as
+dangling paths). Same four fixtures, same grader, one run per cell.
+
+| | With skill | Baseline |
+|---|---|---|
+| Score | **25/26** | 24/26 |
+| Tokens | 266,236 | 114,410 |
+| Tool calls | 47 | 46 |
+
+**For the first time across all testing, the tie broke.** Three assertions differed — two in the
+skill's favor, one against it:
+
+- The baseline missed the sibling bugs in eval-0 **entirely** — didn't fix them, didn't even
+  mention them (every Opus 5 baseline, across three iterations, always at least flagged them).
+  Confirmed genuine by executing the baseline's untouched routes directly: both still raise
+  `KeyError`.
+- The baseline asserted "all 8 tests pass" in eval-1 without ever pasting the actual test output —
+  exactly the empty-completion failure mode the skill exists to prevent. With-skill opened with the
+  verbatim `Ran 8 tests ... OK` and ran an unprompted edge-case sweep.
+- **Against the skill:** the with-skill eval-3 response claimed "your rounding code is fine" — and
+  never actually tested the tie-breaking behavior it was asserting. That claim is false; the
+  baseline caught the same real bug the skill run talked past. Checked directly: no command in the
+  with-skill transcript ever exercises a half-cent case. This sits in real tension with the skill's
+  own evidence standard and is the finding worth sitting with, not filing away as noise.
+
+**Cost behaves differently here too.** 2.33× tokens against 1.4–1.5× on every Opus 5 iteration —
+but tool-call and turn counts were nearly identical (1.02×, 1.04×), unlike Opus 5 where tool calls
+also scaled up. On this model the skill isn't driving more actions, it's driving much longer prose
+per turn.
+
+**Read this as a lead, not a conclusion.** One run per cell, one model. It could flip on a rerun,
+and it doesn't establish that "weaker" is the right explanatory variable rather than something
+specific to this model's MoE architecture. Multiple runs and a second weaker model would be needed
+before calling this confirmed. Full writeup and the two harness bugs caught and fixed while
+producing it: `evals/weak_model/notes.txt`.
+
 ## Token cost
 
 Skills load in three stages: the `description` sits in context every session, `SKILL.md` loads when

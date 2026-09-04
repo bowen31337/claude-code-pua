@@ -1,0 +1,65 @@
+ls -la && echo "---" && find . -type f -not -path '*/\.git/*' | head -50
+echo "===== main.py =====" && cat main.py && echo "" && echo "===== settings.py =====" && cat settings.py
+echo "===== config/staging.yaml =====" && cat -A config/staging.yaml && echo "" && echo "===== config/production.yaml =====" && cat -A config/production.yaml && echo "" && echo "===== config/defaults.env =====" && cat -A config/defaults.env
+echo "===== Running the reported command =====" && APP_ENV=staging python3 main.py && echo "" && echo "===== Environment variables of interest =====" && env | grep -Ei 'APP_ENV|DATABASE_URL|REDIS_URL|LOG_LEVEL' || echo "(none of DATABASE_URL/REDIS_URL/LOG_LEVEL/APP_ENV are set in this shell)"
+echo "===== Test: does a real DATABASE_URL env var win over staging.yaml? =====" && APP_ENV=staging DATABASE_URL=postgres://my-real-override:5432/app python3 main.py && echo "" && echo "===== Trace the intermediate state inside load_settings =====" && python3 -c "
+from settings import _parse_yaml, _load_env_file, CONFIG_DIR
+import os
+env='staging'
+s={}
+s.update(_parse_yaml(f'{CONFIG_DIR}/{env}.yaml'))
+print('after yaml      :', s.get('database_url'))
+for k,v in _load_env_file(f'{CONFIG_DIR}/defaults.env').items():
+    s[k.lower()]=v
+print('after defaults  :', s.get('database_url'), '<-- clobbered')
+for key in ('DATABASE_URL','REDIS_URL','LOG_LEVEL'):
+    if key in os.environ:
+        s[key.lower()]=os.environ[key]
+print('after env vars  :', s.get('database_url'))
+"
+echo "===== README.md =====" && cat README.md && echo "" && echo "===== any tests? =====" && find . -iname '*test*' -o -iname 'conftest*' 2>/dev/null | grep -v '\.git/' || echo "(no test files)"
+cp settings.py settings.py.bak && python3 - <<'PY'
+import re, pathlib
+p = pathlib.Path("settings.py")
+src = p.read_text()
+
+old = '''    settings = {}
+
+    # 1. environment-specific yaml
+    settings.update(_parse_yaml(os.path.join(CONFIG_DIR, f"{env}.yaml")))
+
+    # 2. baked-in defaults, so a bare container still boots
+    for key, value in _load_env_file(os.path.join(CONFIG_DIR, "defaults.env")).items():
+        settings[key.lower()] = value
+
+    # 3. real environment variables win
+    for key in ("DATABASE_URL", "REDIS_URL", "LOG_LEVEL"):
+        if key in os.environ:
+            settings[key.lower()] = os.environ[key]
+
+    return settings'''
+
+new = '''    settings = {}
+
+    # 1. baked-in defaults first, so a bare container still boots.
+    #    These are the lowest-precedence source.
+    for key, value in _load_env_file(os.path.join(CONFIG_DIR, "defaults.env")).items():
+        settings[key.lower()] = value
+
+    # 2. environment-specific yaml overrides the defaults
+    settings.update(_parse_yaml(os.path.join(CONFIG_DIR, f"{env}.yaml")))
+
+    # 3. real environment variables win over everything
+    for key in ("DATABASE_URL", "REDIS_URL", "LOG_LEVEL"):
+        if key in os.environ:
+            settings[key.lower()] = os.environ[key]
+
+    return settings'''
+
+assert old in src, "expected block not found"
+p.write_text(src.replace(old, new))
+print("patched")
+PY
+echo "===== new settings.py =====" && cat settings.py
+echo "===== Reported command (should now be staging db) =====" && APP_ENV=staging python3 main.py && echo "" && echo "===== production (should still be prod db) =====" && APP_ENV=production python3 main.py && echo "" && echo "===== staging with a real DATABASE_URL override (env must still win) =====" && APP_ENV=staging DATABASE_URL=postgres://override:5432/app python3 main.py && echo "" && echo "===== bare (no APP_ENV -> defaults) =====" && python3 main.py
+rm -f settings.py.bak && echo "backup removed" && echo "" && echo "===== search for any other config-loading / precedence patterns =====" && grep -rn "defaults.env\|_parse_yaml\|load_settings\|settings.update\|os.environ" --include=*.py . | grep -v '\.git/'

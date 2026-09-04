@@ -1,0 +1,71 @@
+pwd && ls -la
+ls -la && echo "---GIT---" && git log --oneline -10 2>/dev/null
+ls -la; echo "==="; find . -maxdepth 2 -type d | head -50
+cd <WEAK_MODEL>/iteration-wm1/eval-3-flaky-total-state-pollution/without_skill/repo && pwd && ls -la && echo "===PARENT===" && ls -la ..
+cat ../task.txt; echo "===GRANDPARENT==="; ls -la ../..
+cd <WEAK_MODEL>/iteration-wm1/eval-3-flaky-total-state-pollution && find . -type f 2>/dev/null | head -80
+cd <WEAK_MODEL>/iteration-wm1/eval-3-flaky-total-state-pollution/without_skill/repo && echo "===== README.md =====" && cat README.md && echo "===== money.py =====" && cat money.py && echo "===== rates.py =====" && cat rates.py
+cd <WEAK_MODEL>/iteration-wm1/eval-3-flaky-total-state-pollution/without_skill/repo && echo "===== ledger.py =====" && cat ledger.py && echo "===== test_money.py =====" && cat test_money.py && echo "===== test_conversion.py =====" && cat test_conversion.py && echo "===== test_ledger.py =====" && cat test_ledger.py
+cd <WEAK_MODEL>/iteration-wm1/eval-3-flaky-total-state-pollution/without_skill/repo && echo "===== FULL SUITE (as CI runs it) =====" && python3 -m unittest discover -s . -p "test_*.py" 2>&1; echo "EXIT: $?"
+cd <WEAK_MODEL>/iteration-wm1/eval-3-flaky-total-state-pollution/without_skill/repo && echo "===== ISOLATION =====" && python3 -m unittest test_ledger.TestLedger.test_multi_currency_total 2>&1; echo "EXIT: $?"; echo "===== WHICH ORDER FAILS (conversion before ledger) =====" && python3 -m unittest test_conversion.test_to_usd test_ledger.TestLedger.test_multi_currency_total 2>&1 | tail -5
+cd <WEAK_MODEL>/iteration-wm1/eval-3-flaky-total-state-pollution/without_skill/repo && python3 -m unittest test_conversion.test_to_usd test_ledger.TestLedger.test_multi_currency_total 2>&1
+cd <WEAK_MODEL>/iteration-wm1/eval-3-flaky-total-state-pollution/without_skill/repo && echo "===== conversion test THEN ledger test =====" && python3 -m unittest test_conversion.TestConversion.test_set_rate_accepts_high_precision test_ledger.TestLedger.test_multi_currency_total 2>&1 | tail -12
+</parameter>
+cd <WEAK_MODEL>/iteration-wm1/eval-3-flaky-total-state-pollution/without_skill/repo && python3 -c "
+import rates
+from decimal import Decimal
+# Simulate test_set_rate_accepts_high_precision running first (as it does in CI)
+rates.set_rate('EUR', '1.1001')
+print('EUR rate after the conversion test runs:', rates.get_rate('EUR'))
+# Now the ledger test computes 1000 EUR -> USD
+print('1000 EUR @', rates.get_rate(\"EUR\"), '=', rates.to_usd(Decimal('1000'), 'EUR'))
+print('  (expected 1100.00 at published 1.10, but got 1100.10 -> +10 cents)')
+print()
+print('The conversion test mutates the global FX cache and never resets it.')
+print('reset_rates() exists exactly for this but is never called in tearDown.')
+"
+cd <WEAK_MODEL>/iteration-wm1/eval-3-flaky-total-state-pollution/without_skill/repo && python3 -c "
+from decimal import Decimal
+from money import round_money
+# The docstring promises 'half away from zero'. Does round() actually do that?
+print('round_money(1.235) =', round_money(Decimal('1.235')), '(docstring promises 1.24)')
+print('round_money(1.245) =', round_money(Decimal('1.245')), '(docstring promises 1.25)')
+print('-> Python built-in round() on Decimal uses banker rounding (half-even), not half-up.')
+print('   This is a latent docstring/behavior mismatch, but it is NOT what is failing CI.')
+"
+cd <WEAK_MODEL>/iteration-wm1/eval-3-flaky-total-state-pollution/without_skill/repo && cat > test_conversion.py <<'EOF'
+import unittest
+from decimal import Decimal
+
+import rates
+
+
+class TestConversion(unittest.TestCase):
+    def setUp(self):
+        # FX rates live in a process-global cache. Never let one test's
+        # runtime override leak into the next.
+        rates.reset_rates()
+
+    def tearDown(self):
+        # Restore the published table so we don't pollute other test files
+        # (e.g. test_ledger's multi-currency total).
+        rates.reset_rates()
+
+    def test_published_rate(self):
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.10"))
+
+    def test_to_usd(self):
+        self.assertEqual(rates.to_usd(Decimal("100"), "USD"), Decimal("100"))
+
+    def test_set_rate_accepts_high_precision(self):
+        # The FX job pushes 4-dp rates; make sure they survive round-trip
+        # without being truncated to 2 places.
+        rates.set_rate("EUR", "1.1001")
+        self.assertEqual(rates.get_rate("EUR"), Decimal("1.1001"))
+EOF
+echo "=== written ===" && cat test_conversion.py
+cd <WEAK_MODEL>/iteration-wm1/eval-3-flaky-total-state-pollution/without_skill/repo && echo "===== FULL SUITE =====" && python3 -m unittest discover -s . -p "test_*.py" 2>&1; echo "EXIT: $?"; echo "===== FULL SUITE x5 (CI order stability) =====" && for i in 1 2 3 4 5; do python3 -m unittest discover -s . -p "test_*.py" 2>&1 | tail -1; done
+cd <WEAK_MODEL>/iteration-wm1/eval-3-flaky-total-state-pollution/without_skill/repo && echo "===== reverse-ish order: ledger first, then conversion =====" && python3 -m unittest test_ledger test_conversion 2>&1 | tail -3; echo "===== conversion verbose (confirm it still tests its intent) =====" && python3 -m unittest test_conversion -v 2>&1
+</parameter>
+cd <WEAK_MODEL>/iteration-wm1/eval-3-flaky-total-state-pollution/without_skill/repo && python3 -m unittest discover -s . -p "test_*.py" -v 2>&1 | tail -15
+</parameter>
