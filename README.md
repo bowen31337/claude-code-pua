@@ -30,12 +30,37 @@ commands are in the sections that follow.
 below) — every single breakdown, in both weak-model harnesses, happened on a with-skill run, never
 baseline.
 
-**The honest read:** on Claude Opus 5, the skill has no measurable effect — the model already does
-what it asks. On a genuinely weaker model, there's a real, repeatable quality edge when a run
-completes normally (+6.7 to +10.6 points), but the skill's own length correlates with a higher
-breakdown rate that erodes or fully cancels that edge in the raw aggregate, and it consistently
-costs 1.4–2.7× the tokens. This is not "the skill works" or "the skill doesn't work" — it's a real
-trade whose net sign depends on how much you weight reliability against quality-when-it-lands.
+## Verdict
+
+**The evidence does not support claiming this skill has demonstrated value.**
+
+**On Claude Opus 5 — the model this skill is actually meant to run on — the result is unambiguous.**
+Three independent runs, exact ties every time, 69 assertions, zero that ever discriminated. That
+isn't "too small an effect to see" — it's the model already doing what the skill asks, so the skill
+adds pure cost (1.4–1.5× tokens) for nothing in return.
+
+**On a genuinely weaker model, it's a wash, not a win.** Two independently-designed harnesses agree
+on the shape of the result despite disagreeing on the mechanism. When a run completes normally, the
+skill does produce a real, repeatable quality edge (+6.7 to +10.6 points) — that part reproduces
+under two different protocols, so it isn't noise. But the skill's own presence also correlates with
+a real, repeatable *increase in catastrophic failure*: every single breakdown across both harnesses
+(5 of 5, 96 total runs) happened on a with-skill run, never baseline — not the skill's content
+producing wrong answers, but its length correlating with the model losing the thread and abandoning
+the task outright. Net those two effects against each other — the number that actually matters for
+anyone deploying this, since a broken run has real cost to a user — and the result moves from a weak
++3.2pp toward an exact 0.0pp tie as the test got more neutral. Cost was higher every time, in every
+iteration, in both harnesses: 1.4–2.7× tokens for a benefit that, on balance, evaporates.
+
+**And the weaker-model result, even taken at face value, doesn't rescue the case for this skill
+specifically** — a local 35B MoE isn't what anyone runs a Claude Code skill on. The actual
+deployment target is Claude models, and on the one Claude model tested, three times, independently,
+the answer was a clean zero.
+
+None of this means the underlying ideas are wrong in principle, or that the skill couldn't earn its
+keep on some other weaker model, some harder class of task, or after a redesign that fixes the
+length/reliability trade-off documented above. It means that as currently built and as actually
+tested, across 12 independent iterations and 96+ runs, the skill has not earned the claim that it
+helps.
 
 ## Install
 
