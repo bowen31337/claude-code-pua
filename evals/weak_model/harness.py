@@ -84,9 +84,19 @@ def chat(base_url, model, messages, max_tokens, temperature=0.3, timeout=280):
 
 
 def run_bash(cmd, cwd, timeout=30):
+    # Fixture copies under evals/ have no .git of their own, and git commands
+    # discover a repo by walking UP the directory tree -- so `git commit` run
+    # inside a fixture silently lands in the real project repo above it. This
+    # actually happened during testing: a model ran `git add test_conversion.py
+    # && git commit` inside a fixture and it landed as a real commit on this
+    # project's main branch (harmless content, but unreviewed and unintended).
+    # GIT_CEILING_DIRECTORIES stops the upward search at `cwd`'s parent, so any
+    # git command run by the model sees "not a git repository" instead.
+    env = dict(os.environ)
+    env["GIT_CEILING_DIRECTORIES"] = os.path.dirname(os.path.abspath(cwd))
     try:
         p = subprocess.run(cmd, cwd=cwd, shell=True, capture_output=True,
-                            text=True, timeout=timeout)
+                            text=True, timeout=timeout, env=env)
         out = (p.stdout or "") + (p.stderr or "")
         return p.returncode, out
     except subprocess.TimeoutExpired:
